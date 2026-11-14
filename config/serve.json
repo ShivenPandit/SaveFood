@@ -1,0 +1,20 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/spfx-serve.schema.json",
+  "port": 4321,
+  "https": true,
+  "initialPage": "https://vedanta.sharepoint.com/sites/SaveFoodUAT/SitePages/Home.aspx",
+  "serveConfigurations": {
+    "default": {
+      "pageUrl": "https://vedanta.sharepoint.com/sites/SaveFoodUAT/SitePages/Home.aspx"
+    },
+    "uat": {
+      "pageUrl": "https://vedanta.sharepoint.com/sites/SaveFoodUAT/SitePages/Home.aspx"
+    },
+    "production": {
+      "pageUrl": "https://vedanta.sharepoint.com/sites/SaveFood/SitePages/Home.aspx"
+    },
+    "workbench": {
+      "pageUrl": "https://vedanta.sharepoint.com/sites/SaveFoodUAT/_layouts/15/workbench.aspx"
+    }
+  }
+}

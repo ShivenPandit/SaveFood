@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "SaveFood-client-side-solution",
+    "id": "adaa3f6c-17a7-4d90-8798-d3ed6dadabe4",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "Vedanta Resources Ltd.",
+      "websiteUrl": "https://vedanta.sharepoint.com/sites/SaveFood",
+      "privacyUrl": "https://vedanta.sharepoint.com/sites/SaveFood",
+      "termsOfUseUrl": "https://vedanta.sharepoint.com/sites/SaveFood",
+      "mpnId": "Undefined-1.22.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "VOGL Save Food Management System"
+      },
+      "longDescription": {
+        "default": "A centralized digital platform to manage advance meal opt-out requests, optimize catering planning, minimize food wastage, and promote sustainability across VOGL locations."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": [
+        "Productivity",
+        "Workflow & Process Management"
+      ]
+    },
+    "features": [
+      {
+        "title": "SaveFood Feature",
+        "description": "The feature that activates elements of the SaveFood solution.",
+        "id": "a6af1389-ba38-489b-b24c-f2c36e5ed404",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/SaveFood.sppkg"
+  }
+}

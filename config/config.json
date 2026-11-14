@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "template-spfx-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/savefood/SaveFoodWebPart.js",
+          "manifest": "./src/webparts/savefood/SaveFoodWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "TemplateSpfxWebPartStrings": "lib/webparts/savefood/loc/{locale}.js"
+  }
+}

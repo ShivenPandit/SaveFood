@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Compilation and Build Output
+dist/
+lib/
+lib-commonjs/
+lib-amd/
+temp/
+release/
+.heft/
+dist.stats.json
+
+# Jest and Test Coverage
+jest-output/
+coverage/
+
+# SPFx Packages and Assets
+sharepoint/solution/*.sppkg
+sharepoint/solution/debug/
+
+# Static Asset & SCSS Generated Typings
+src/**/*.scss.ts
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+heft-debug.log*
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor and IDE Files
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
