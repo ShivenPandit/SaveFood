@@ -280,19 +280,36 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
       body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
       body.savefood-dashboard-no-scroll #workbenchPageContent,
       body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
+      body.savefood-dashboard-no-scroll .sp-appRoot,
+      body.savefood-dashboard-no-scroll .sp-pageLayout,
+      body.savefood-dashboard-no-scroll #spPageCanvasContent,
       html.savefood-dashboard-no-scroll {
+        overflow: hidden !important;
         overflow-y: hidden !important;
         overflow-x: hidden !important;
         height: 100vh !important;
         min-height: 100vh !important;
         max-height: 100vh !important;
       }
+      @media (max-height: 850px) {
+        body.savefood-dashboard-no-scroll,
+        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
+        body.savefood-dashboard-no-scroll #workbenchPageContent,
+        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
+        body.savefood-dashboard-no-scroll .sp-appRoot,
+        body.savefood-dashboard-no-scroll .sp-pageLayout,
+        body.savefood-dashboard-no-scroll #spPageCanvasContent,
+        html.savefood-dashboard-no-scroll {
+          overflow-y: auto !important;
+          max-height: none !important;
+        }
+      }
       .fixed, [class*="fixed"] {
         margin: 0 !important;
         margin-top: 0 !important;
       }
       html, body {
-        overflow-y: auto !important;
+        overflow-y: hidden !important;
         overflow-x: hidden !important;
         height: 100% !important;
         min-height: 100% !important;

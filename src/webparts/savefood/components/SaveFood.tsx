@@ -109,6 +109,21 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
     };
   }, [isAdmin]);
 
+  // Lock dashboard scrollbar when on the dashboard to ensure the entire page fits cleanly
+  React.useEffect(() => {
+    if (currentView === "home") {
+      document.body.classList.add("savefood-dashboard-no-scroll");
+      document.documentElement.classList.add("savefood-dashboard-no-scroll");
+    } else {
+      document.body.classList.remove("savefood-dashboard-no-scroll");
+      document.documentElement.classList.remove("savefood-dashboard-no-scroll");
+    }
+    return () => {
+      document.body.classList.remove("savefood-dashboard-no-scroll");
+      document.documentElement.classList.remove("savefood-dashboard-no-scroll");
+    };
+  }, [currentView]);
+
   const handleLogoError = (): void => {
     if (logoSrc !== VEDANTA_LOGO_BASE64) {
       setLogoSrc(VEDANTA_LOGO_BASE64);
@@ -282,11 +297,32 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {/* 2. Main Content Router */}
       {currentView === "home" && (
-        <>
-          {/* Contained Hero Banner */}
+        <main
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            width: "100%",
+            flex: "1 0 auto",
+            boxSizing: "border-box",
+          }}
+          className="w-full box-border"
+        >
+          {/* Edge-to-Edge Full-Bleed Hero Banner */}
           <section
-            style={{ padding: "16px 32px" }}
-            className="relative w-full overflow-hidden bg-gradient-to-r from-[#002D56] via-[#004B87] to-[#046A38] text-white select-none shadow-md shrink-0"
+            style={{
+              flex: "0 0 auto",
+              minHeight: "175px",
+              padding: "24px 36px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              margin: 0,
+              borderRadius: 0,
+              boxSizing: "border-box",
+            }}
+            className="relative w-full overflow-hidden bg-gradient-to-r from-[#002D56] via-[#004B87] to-[#046A38] text-white select-none shadow-md shrink-0 rounded-none"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#002D56] via-[#004B87]/90 via-55% to-transparent pointer-events-none z-10" />
 
@@ -305,13 +341,13 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
               />
             </div>
 
-            <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 min-w-0">
+            <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
               <div className="max-w-2xl xl:max-w-3xl min-w-0">
-                <div className="w-10 sm:w-12 h-1.5 bg-[#F59E0B] rounded-full mb-1.5 sm:mb-2" />
-                <p className="text-white/90 text-xs sm:text-sm font-semibold tracking-wider uppercase">
+                <div className="w-12 h-1.5 bg-[#F59E0B] rounded-full mb-2" />
+                <p className="text-white/90 text-sm sm:text-[14px] font-semibold tracking-wider uppercase">
                   Vedanta Sustainability Platform
                 </p>
-                <h1 className="font-extrabold text-white tracking-tight leading-tight text-lg sm:text-2xl lg:text-3xl mt-1">
+                <h1 className="font-extrabold text-white tracking-tight leading-tight text-2xl sm:text-3xl lg:text-[32px] mt-1">
                   VOGL Save Food{" "}
                   <span className="text-emerald-400 font-black whitespace-nowrap">
                     Management System
@@ -320,17 +356,20 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
                 <p className="text-amber-300 font-extrabold tracking-widest text-xs sm:text-sm mt-1 uppercase">
                   Inform Early. Prepare Smart. Waste Less.
                 </p>
-                <p className="text-blue-100/90 leading-relaxed text-xs sm:text-[13px] lg:text-sm mt-1.5 max-w-xl lg:max-w-2xl 2xl:max-w-3xl">
+                <p className="text-blue-100/90 leading-relaxed text-xs sm:text-sm mt-2 max-w-xl lg:max-w-2xl 2xl:max-w-3xl">
                   A centralized digital platform to manage advance meal opt-out requests, optimize catering planning, minimize food wastage, and promote sustainability across VOGL locations.
                 </p>
               </div>
 
               <div className="hidden lg:flex flex-col items-end text-right justify-center pr-2 shrink-0">
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3.5 sm:p-4 max-w-[230px] text-center shadow-lg">
-                  <span className="text-[10px] font-bold tracking-wider text-emerald-300 uppercase block">
+                <div
+                  style={{ padding: "18px 24px" }}
+                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl max-w-[240px] text-center shadow-lg"
+                >
+                  <span className="text-[11px] font-bold tracking-wider text-emerald-300 uppercase block">
                     Responsible Living
                   </span>
-                  <p className="text-xs font-semibold text-white mt-1 leading-snug">
+                  <p className="text-xs sm:text-[13px] font-semibold text-white mt-1 leading-snug">
                     Every advance opt-out preserves food &amp; energy.
                   </p>
                   <div className="w-8 h-0.5 bg-[#F59E0B] rounded-full mx-auto mt-2" />
@@ -339,116 +378,124 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             </div>
           </section>
 
-          {/* Action Cards Grid: Full-Bleed & Responsive */}
-          <main
-            style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", padding: "16px 32px" }}
-            className="w-full box-border"
+          {/* 3-Column Card Grid: Padded Container Underneath Banner */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "20px",
+              padding: "20px 32px 16px 32px",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+            className="w-full"
           >
-            <div
-              className={`grid ${
-                visibleCards.length > 3
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                  : "grid-cols-1 md:grid-cols-3"
-              } gap-4 sm:gap-5 w-full items-start`}
-            >
-              {visibleCards.map((card) => {
-                const Illustration = card.illustration;
-                const isPrimary = card.isPrimary;
+            {visibleCards.map((card) => {
+              const Illustration = card.illustration;
+              const isPrimary = card.isPrimary;
 
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => handleNavigate(card.view)}
-                    className={`group relative flex flex-col justify-between p-6 sm:p-7 rounded-2xl ${
-                      isPrimary
-                        ? "bg-gradient-to-br from-[#EBFBF0] via-[#E2F7E9] to-[#D1F2DD] border-2 border-[#86EFAC] hover:border-[#10B981] hover:shadow-emerald-900/15"
-                        : "bg-white border-2 border-slate-200/90 hover:border-[#0066CC] hover:shadow-slate-300/40"
-                    } shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ease-out cursor-pointer overflow-hidden min-h-[175px] sm:min-h-[190px] lg:min-h-[200px] select-none min-w-0`}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleNavigate(card.view);
-                      }
-                    }}
-                  >
-                    {isPrimary ? (
-                      <>
-                        <div className="absolute -bottom-8 -right-8 w-44 h-44 rounded-full bg-emerald-200/40 blur-xl pointer-events-none" />
-                        <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-full bg-teal-200/35 blur-lg pointer-events-none" />
-                      </>
-                    ) : (
-                      <>
-                        <div className="absolute -bottom-8 -right-8 w-44 h-44 rounded-full bg-blue-100/45 blur-xl pointer-events-none" />
-                        <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-full bg-sky-100/50 blur-lg pointer-events-none" />
-                      </>
-                    )}
+              return (
+                <div
+                  key={card.id}
+                  onClick={() => handleNavigate(card.view)}
+                  style={{
+                    minHeight: "190px",
+                    maxHeight: "225px",
+                    padding: "26px 30px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    boxSizing: "border-box",
+                  }}
+                  className={`group relative rounded-2xl ${
+                    isPrimary
+                      ? "bg-gradient-to-br from-[#EBFBF0] via-[#E2F7E9] to-[#D1F2DD] border-2 border-[#86EFAC] hover:border-[#10B981] hover:shadow-emerald-900/15"
+                      : "bg-white border-2 border-slate-200/90 hover:border-[#0066CC] hover:shadow-slate-300/40"
+                  } shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 ease-out cursor-pointer overflow-hidden select-none min-w-0`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleNavigate(card.view);
+                    }
+                  }}
+                >
+                  {isPrimary ? (
+                    <>
+                      <div className="absolute -bottom-8 -right-8 w-44 h-44 rounded-full bg-emerald-200/40 blur-xl pointer-events-none" />
+                      <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-full bg-teal-200/35 blur-lg pointer-events-none" />
+                    </>
+                  ) : (
+                    <>
+                      <div className="absolute -bottom-8 -right-8 w-44 h-44 rounded-full bg-blue-100/45 blur-xl pointer-events-none" />
+                      <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-full bg-sky-100/50 blur-lg pointer-events-none" />
+                    </>
+                  )}
 
-                    <div className="flex items-start justify-between gap-4 z-10 min-w-0">
-                      <div className="flex-1 min-w-0 pr-2">
-                        <h3
-                          className={`font-black text-slate-900 tracking-tight leading-snug ${
-                            !isPrimary ? "group-hover:text-[#004B87]" : ""
-                          } transition-colors text-base sm:text-lg lg:text-xl`}
-                        >
-                          {card.title}
-                        </h3>
-                        <p
-                          className={`${
-                            isPrimary ? "text-slate-600" : "text-slate-500"
-                          } mt-2 leading-relaxed text-xs sm:text-sm line-clamp-2`}
-                        >
-                          {card.description}
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 flex items-center justify-end pointer-events-none select-none pl-1 self-start -mt-1">
-                        <Illustration className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 transition-transform duration-300 group-hover:scale-105" />
-                      </div>
+                  <div className="flex items-start justify-between gap-4 z-10 min-w-0">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3
+                        className={`font-black text-slate-900 tracking-tight leading-snug ${
+                          !isPrimary ? "group-hover:text-[#004B87]" : ""
+                        } transition-colors text-[17px] sm:text-[18px]`}
+                      >
+                        {card.title}
+                      </h3>
+                      <p
+                        className={`${
+                          isPrimary ? "text-slate-600" : "text-slate-500"
+                        } mt-2 text-[13px] sm:text-[13.5px] leading-relaxed line-clamp-2`}
+                      >
+                        {card.description}
+                      </p>
                     </div>
 
-                    <div className="mt-auto pt-4 z-10">
-                      {isPrimary ? (
-                        <span className="inline-flex items-center gap-2 bg-[#0066CC] hover:bg-[#0052A3] text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-2xs group-hover:shadow-xs transition-all">
-                          <span>{card.actionLabel}</span>
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                            <polyline points="12 5 19 12 12 19" />
-                          </svg>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-2 bg-white hover:bg-blue-50/80 border border-blue-200/90 text-[#0066CC] text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-2xs group-hover:border-blue-400 group-hover:shadow-xs transition-all">
-                          <span>{card.actionLabel}</span>
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                            <polyline points="12 5 19 12 12 19" />
-                          </svg>
-                        </span>
-                      )}
+                    <div className="shrink-0 flex items-center justify-end pointer-events-none select-none pl-1 self-start">
+                      <Illustration className="w-14 h-14 sm:w-16 sm:h-16 transition-transform duration-300 group-hover:scale-105" />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </main>
-        </>
+
+                  <div className="mt-auto pt-3 z-10">
+                    {isPrimary ? (
+                      <span className="inline-flex items-center gap-2 bg-[#0066CC] hover:bg-[#0052A3] text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-2xs group-hover:shadow-xs transition-all">
+                        <span>{card.actionLabel}</span>
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                          <polyline points="12 5 19 12 12 19" />
+                        </svg>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 bg-white hover:bg-blue-50/80 border border-blue-200/90 text-[#0066CC] text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-2xs group-hover:border-blue-400 group-hover:shadow-xs transition-all">
+                        <span>{card.actionLabel}</span>
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                          <polyline points="12 5 19 12 12 19" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </main>
       )}
 
       {/* Child Views */}
@@ -529,7 +576,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {/* 4. Compact Single-Row Corporate Footer Pinned Flush to Bottom */}
       <footer
-        style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0", padding: "12px 32px" }}
+        style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0", padding: "8px 32px" }}
         className="select-none shrink-0 mt-auto w-full"
       >
         <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[11px] sm:text-xs text-slate-500 font-medium gap-1.5 sm:gap-0">
