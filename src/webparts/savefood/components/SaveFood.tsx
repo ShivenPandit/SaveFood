@@ -4,14 +4,12 @@ import { VEDANTA_LOGO_BASE64 } from "../assets/logoBase64";
 import {
   CreateOptOutIllustration,
   MyRequestsIllustration,
-  AllRequestsIllustration,
   ReportsIllustration,
   UserManualIllustration,
 } from "./HomeIllustrations";
 import { resolveUserRole } from "../services/roleService";
 import { CreateMealOptOut } from "./CreateRequest/CreateMealOptOut";
 import { MyMealOptOuts } from "./MyRequests/MyMealOptOuts";
-import { AllMealOptOuts } from "./AllRequests/AllMealOptOuts";
 import { ReportsDashboard } from "./Reports/ReportsDashboard";
 import { UserManual } from "./UserManual/UserManual";
 

@@ -39,9 +39,13 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
   // 1. Load Locations on mount
   React.useEffect(() => {
-    MealRequestService.getAllLocations(spHttpClient, siteUrl).then((locs) => {
-      setLocations(locs);
-    });
+    MealRequestService.getAllLocations(spHttpClient, siteUrl)
+      .then((locs) => {
+        setLocations(locs);
+      })
+      .catch((err: Error) => {
+        console.error(err);
+      });
   }, [spHttpClient, siteUrl]);
 
   // 2. Fetch Requests based on active filters
@@ -63,11 +67,13 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   );
 
   React.useEffect(() => {
-    fetchRequests(true);
+    fetchRequests(true).catch((err: Error) => {
+      console.error(err);
+    });
   }, [fetchRequests]);
 
   // Load next page
-  const handleLoadMore = async () => {
+  const handleLoadMore = async (): Promise<void> => {
     if (!nextUrl || isLoadingMore) return;
     setIsLoadingMore(true);
 

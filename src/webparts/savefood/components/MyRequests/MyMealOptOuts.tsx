@@ -47,11 +47,13 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   }, [spHttpClient, siteUrl, currentUserId, currentUserEmail]);
 
   React.useEffect(() => {
-    loadMyRequests();
+    loadMyRequests().catch((err: Error) => {
+      console.error(err);
+    });
   }, [loadMyRequests]);
 
   // Handle Cancellation of an opt-out before deadline
-  const handleCancel = async (item: IMealOptOutRequestItem) => {
+  const handleCancel = async (item: IMealOptOutRequestItem): Promise<void> => {
     const mealDateFormatted = item.MealDate ? item.MealDate.split("T")[0] : "";
     const confirmCancel = window.confirm(
       `Are you sure you want to retract your opt-out for ${item.MealType} on ${mealDateFormatted}?`
@@ -69,7 +71,9 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
         type: "success",
         message: `Opt-out for ${item.MealType} on ${mealDateFormatted} successfully retracted.`,
       });
-      loadMyRequests();
+      loadMyRequests().catch((err: Error) => {
+        console.error(err);
+      });
     } else {
       setFeedback({
         type: "error",

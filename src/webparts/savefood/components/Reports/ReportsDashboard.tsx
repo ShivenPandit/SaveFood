@@ -33,12 +33,16 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
     MealRequestService.getAllMealOptOuts(spHttpClient, siteUrl, {
       dateISO: null, // all records
       pageSize: 500,
-    }).then((res) => {
-      if (isMounted) {
-        setData(res.items);
-        setIsLoading(false);
-      }
-    });
+    })
+      .then((res) => {
+        if (isMounted) {
+          setData(res.items);
+          setIsLoading(false);
+        }
+      })
+      .catch((err: Error) => {
+        console.error(err);
+      });
 
     return () => {
       isMounted = false;
