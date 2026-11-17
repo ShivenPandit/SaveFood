@@ -27,8 +27,12 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   onNavigateCreate,
   onBack,
 }) => {
-  const [requests, setRequests] = React.useState<IMealOptOutRequestItem[]>([]);
-  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const cachedInitial = React.useMemo(() => {
+    return MealRequestService.getCachedMyMealOptOuts(currentUserId) || [];
+  }, [currentUserId]);
+
+  const [requests, setRequests] = React.useState<IMealOptOutRequestItem[]>(cachedInitial);
+  const [isLoading, setIsLoading] = React.useState<boolean>(cachedInitial.length === 0);
   const [cancellingId, setCancellingId] = React.useState<number | null>(null);
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -36,8 +40,10 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   const [selectedMealFilter, setSelectedMealFilter] = React.useState<"ALL" | MealType>("ALL");
   const [searchLocation, setSearchLocation] = React.useState<string>("");
 
-  const loadMyRequests = React.useCallback(async () => {
-    setIsLoading(true);
+  const loadMyRequests = React.useCallback(async (silent: boolean = false) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
     const items = await MealRequestService.getMyMealOptOuts(
       spHttpClient,
       siteUrl,
@@ -49,10 +55,12 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   }, [spHttpClient, siteUrl, currentUserId, currentUserEmail]);
 
   React.useEffect(() => {
-    loadMyRequests().catch((err: Error) => {
+    const hasCache = cachedInitial.length > 0;
+    loadMyRequests(hasCache).catch((err: Error) => {
       console.error(err);
+      setIsLoading(false);
     });
-  }, [loadMyRequests]);
+  }, [loadMyRequests, cachedInitial]);
 
   // Handle Cancellation of an opt-out before deadline
   const handleCancel = async (item: IMealOptOutRequestItem): Promise<void> => {
@@ -107,8 +115,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
     endIndex,
   } = useDynamicPagination<IMealOptOutRequestItem>({
     items: filteredRequests,
-    bufferBottom: 32,
-    defaultRowHeight: 46,
+    viewType: "my-requests",
   });
 
   // Reset to first page when search filter changes
@@ -119,13 +126,13 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
       {/* Top Header */}
-      <div className="mb-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+      <div className="mb-2.5 sm:mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 w-full">
         <div>
           <BackButton onClick={onBack} />
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
             My Meal Opt-Out Requests
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs text-slate-500">
             View and manage your submitted meal advance cancellations across all Vedanta canteens.
           </p>
         </div>
@@ -133,7 +140,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
         <button
           type="button"
           onClick={onNavigateCreate}
-          className="inline-flex items-center gap-1.5 bg-[#0066CC] hover:bg-[#0052A3] text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-full shadow-2xs hover:shadow-xs transition cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 bg-[#0066CC] hover:bg-[#0052A3] text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-2xs hover:shadow-xs transition cursor-pointer self-start sm:self-auto"
         >
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -146,7 +153,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
       {/* Feedback Banner */}
       {feedback && (
         <div
-          className={`mb-3.5 p-3.5 rounded-xl border flex items-center justify-between text-xs sm:text-sm font-medium ${
+          className={`mb-2.5 p-3 rounded-xl border flex items-center justify-between text-xs sm:text-sm font-medium ${
             feedback.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : "bg-rose-50 border-rose-200 text-rose-800"
@@ -166,10 +173,10 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
       {/* Filter and Search Bar Card */}
       <div
         style={{ height: "auto", flex: "0 0 auto" }}
-        className="w-full bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-4 mb-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3"
+        className="w-full bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-2.5 sm:px-4 sm:py-2.5 mb-2.5 sm:mb-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5"
       >
         {/* Meal Type Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 sm:pb-0">
           {(["ALL", "Breakfast", "Lunch", "Dinner"] as Array<"ALL" | MealType>).map((type) => {
             const isSelected = selectedMealFilter === type;
             return (
@@ -177,7 +184,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                 key={type}
                 type="button"
                 onClick={() => setSelectedMealFilter(type)}
-                className={`px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   isSelected
                     ? "bg-[#004B87] text-white shadow-2xs"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -190,17 +197,17 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
         </div>
 
         {/* Location Search Input */}
-        <div className="relative min-w-[240px] sm:w-72">
+        <div className="relative min-w-[220px] sm:w-64">
           <input
             type="text"
             placeholder="Search by mess location..."
             value={searchLocation}
             onChange={(e) => setSearchLocation(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-300 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
+            className="w-full h-8 pl-8 pr-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
           />
           <svg
             viewBox="0 0 24 24"
-            className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 fill-none stroke-current"
+            className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 fill-none stroke-current"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -263,12 +270,12 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10.5px] sm:text-xs">
                   <tr>
-                    <th className="py-3 px-4 sm:px-6">Meal Date</th>
-                    <th className="py-3 px-4">Meal Type</th>
-                    <th className="py-3 px-4">Canteen Location</th>
-                    <th className="py-3 px-4">Submitted On</th>
-                    <th className="py-3 px-4 text-center">Cut-Off Status</th>
-                    <th className="py-3 px-4 sm:px-6 text-right">Action</th>
+                    <th className="py-2 px-3 sm:px-5">Meal Date</th>
+                    <th className="py-2 px-3">Meal Type</th>
+                    <th className="py-2 px-3">Canteen Location</th>
+                    <th className="py-2 px-3">Submitted On</th>
+                    <th className="py-2 px-3 text-center">Cut-Off Status</th>
+                    <th className="py-2 px-3 sm:px-5 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -296,10 +303,10 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
 
                     return (
                       <tr key={item.Id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 px-4 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
+                        <td className="py-2 px-3 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
                           {formattedMealDate}
                         </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
+                        <td className="py-2 px-3 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                               item.MealType === "Breakfast"
@@ -313,13 +320,13 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                             <span>{item.MealType}</span>
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap">
+                        <td className="py-2 px-3 font-semibold text-slate-800 whitespace-nowrap">
                           {item.Location?.Title || "—"}
                         </td>
-                        <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap text-[11px]">
+                        <td className="py-2 px-3 text-slate-500 whitespace-nowrap text-[11px]">
                           {formattedCreated}
                         </td>
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <td className="py-2 px-3 text-center whitespace-nowrap">
                           {canCancel ? (
                             <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -331,7 +338,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 px-4 sm:px-5 text-right whitespace-nowrap">
+                        <td className="py-2 px-3 sm:px-5 text-right whitespace-nowrap">
                           {canCancel ? (
                             <button
                               type="button"

@@ -23,9 +23,13 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
   onBack,
   initialTab = "dashboard",
 }) => {
+  const cachedInitial = React.useMemo(() => {
+    return MealRequestService.getCachedAllMealOptOuts() || [];
+  }, []);
+
   const [activeTab, setActiveTab] = React.useState<ReportTab>(initialTab);
-  const [data, setData] = React.useState<IMealOptOutRequestItem[]>([]);
-  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [data, setData] = React.useState<IMealOptOutRequestItem[]>(cachedInitial);
+  const [isLoading, setIsLoading] = React.useState<boolean>(cachedInitial.length === 0);
 
   // Load all opt-outs for analytics
   React.useEffect(() => {
@@ -42,6 +46,9 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
       })
       .catch((err: Error) => {
         console.error(err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       });
 
     return () => {

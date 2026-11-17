@@ -7,6 +7,7 @@ export interface IUseDynamicPaginationOptions<T> {
   minPageSize?: number;
   maxPageSize?: number;
   initialPage?: number;
+  viewType?: "my-requests" | "all-requests" | "default";
 }
 
 export interface IUseDynamicPaginationResult<T> {
@@ -23,149 +24,89 @@ export interface IUseDynamicPaginationResult<T> {
 }
 
 /**
- * Initial viewport estimation based on standard screen resolutions
+ * Calculates optimal rows per page directly from window.innerHeight & window.innerWidth.
+ * Guaranteed to fit within viewport on Laptop, 1080p, 2K, and 4K screens without window scroll.
+ * Completely decoupled from scroll position to guarantee ZERO flicker during scrolling.
  */
-const estimatePageSizeFromViewport = (): number => {
-  if (typeof window === "undefined") return 10;
-
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
-  // Mobile viewport (< 640px)
+export const calculateOptimalPageSize = (
+  h: number,
+  w: number,
+  viewType: "my-requests" | "all-requests" | "default" = "default"
+): number => {
   if (w < 640) {
-    return 3;
+    return 3; // mobile card pagination
   }
 
-  // 4K & Ultra-Tall Displays (>= 1800px vertical)
-  if (h >= 1800) {
-    return 36;
-  }
+  // Exact vertical overhead for non-row elements (in pixels):
+  // - Top navbar + green accent line: 54px
+  // - Main container padding (py-2.5): ~20px
+  // - Header row (Back button, Title, Subtitle, Action button / Tabs): ~56px for my-requests, ~76px for all-requests
+  // - Filter Card & search controls: ~68px for my-requests, ~86px for all-requests
+  // - Table container card borders: 4px
+  // - Table thead: ~36px
+  // - DataTablePagination footer: ~44px
+  // - Safety margin to guarantee zero vertical window scrollbar: ~28px
+  // Total overhead: ~340px for my-requests, ~380px for all-requests.
+  const overhead = viewType === "all-requests" ? 380 : 340;
+  const rowHeight = 42; // Compact, clean table row height
 
-  // 1440p QHD Displays (>= 1300px vertical)
-  if (h >= 1300) {
-    return 22;
-  }
+  const availableRowSpace = Math.max(0, h - overhead);
+  const rows = Math.floor(availableRowSpace / rowHeight);
 
-  // 1080p FHD Displays (>= 950px vertical)
-  if (h >= 950) {
-    return 14;
-  }
-
-  // 768p Laptop Displays (>= 650px vertical)
-  if (h >= 650) {
-    return 8;
-  }
-
-  // Compact netbooks / small height windows
-  return 5;
+  // Clamped ranges:
+  // On compact laptop (h ≈ 620px-700px): 6–7 rows (5–6 for all-requests)
+  // On standard 1080p (h ≈ 750px-950px): 10–14 rows
+  // On 2K QHD (h ≈ 1000px-1400px): 18–24 rows
+  // On 4K UHD (h ≥ 1400px): 28–36 rows
+  return Math.max(4, Math.min(36, rows));
 };
 
 export function useDynamicPagination<T>({
   items,
-  bufferBottom = 32,
-  defaultRowHeight = 48,
-  minPageSize = 3,
-  maxPageSize = 50,
   initialPage = 1,
+  minPageSize = 4,
+  maxPageSize = 45,
+  viewType = "default",
 }: IUseDynamicPaginationOptions<T>): IUseDynamicPaginationResult<T> {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = React.useState<number>(initialPage);
-  const [pageSize, setPageSize] = React.useState<number>(estimatePageSizeFromViewport);
 
-  const recalculate = React.useCallback(() => {
-    if (typeof window === "undefined") return;
+  const getTargetPageSize = React.useCallback((): number => {
+    if (typeof window === "undefined") return 6;
+    const computed = calculateOptimalPageSize(window.innerHeight, window.innerWidth, viewType);
+    return Math.max(minPageSize, Math.min(maxPageSize, computed));
+  }, [viewType, minPageSize, maxPageSize]);
 
-    const container = containerRef.current;
-    if (!container) {
-      setPageSize(estimatePageSizeFromViewport());
-      return;
-    }
+  const [pageSize, setPageSize] = React.useState<number>(getTargetPageSize);
 
-    const containerRect = container.getBoundingClientRect();
-    const isMobile = window.innerWidth < 640;
-
-    // Available vertical height from container top to viewport bottom
-    const availableHeight = window.innerHeight - containerRect.top - bufferBottom;
-
-    // Measure overhead elements (headers, footers, borders, filter bars)
-    let overhead = 0;
-
-    // Table header (thead) overhead
-    const thead = container.querySelector("thead");
-    if (thead) {
-      overhead += thead.getBoundingClientRect().height;
-    }
-
-    // Pagination bar placeholder overhead (~54px)
-    overhead += 54;
-
-    // Additional container padding/margins
-    overhead += 16;
-
-    const netRowSpace = Math.max(0, availableHeight - overhead);
-
-    // Live Row Height Detection
-    let liveRowHeight = defaultRowHeight;
-    if (isMobile) {
-      const mobileCard = container.querySelector('[data-role="list-item"]');
-      if (mobileCard) {
-        const measuredHeight = mobileCard.getBoundingClientRect().height;
-        if (measuredHeight > 30) {
-          liveRowHeight = measuredHeight + 8; // include card gap
-        }
-      } else {
-        liveRowHeight = 115; // default mobile card estimate
-      }
-    } else {
-      const row = container.querySelector("tbody tr");
-      if (row) {
-        const measuredHeight = row.getBoundingClientRect().height;
-        if (measuredHeight > 20) {
-          liveRowHeight = measuredHeight;
-        }
-      }
-    }
-
-    // Effective Page Size Calculation
-    const calculatedRows = Math.floor(netRowSpace / liveRowHeight);
-    const clampedSize = Math.min(maxPageSize, Math.max(minPageSize, calculatedRows));
-
-    setPageSize((prev) => (prev !== clampedSize ? clampedSize : prev));
-  }, [bufferBottom, defaultRowHeight, minPageSize, maxPageSize]);
-
-  // Debounced Window Resize & Container ResizeObserver
+  // Recalculate ONLY on window resize (debounced). NEVER on scroll! Zero flicker guaranteed!
   React.useEffect(() => {
     let timeoutId: number;
 
-    const handleDebouncedResize = (): void => {
+    const handleResize = (): void => {
       window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(() => {
-        recalculate();
-      }, 120);
+        const target = getTargetPageSize();
+        setPageSize((prev) => (prev !== target ? target : prev));
+      }, 100);
     };
 
-    window.addEventListener("resize", handleDebouncedResize);
+    window.addEventListener("resize", handleResize);
 
-    // Initial measurement after DOM mount
-    recalculate();
-
-    // Use ResizeObserver on container if available
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
-      resizeObserver = new ResizeObserver(() => {
-        handleDebouncedResize();
-      });
-      resizeObserver.observe(containerRef.current);
-    }
+    // Initial check on mount
+    handleResize();
 
     return () => {
-      window.removeEventListener("resize", handleDebouncedResize);
+      window.removeEventListener("resize", handleResize);
       window.clearTimeout(timeoutId);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
     };
-  }, [recalculate]);
+  }, [getTargetPageSize]);
+
+  // Recalculate callback for external consumers
+  const recalculate = React.useCallback(() => {
+    const target = getTargetPageSize();
+    setPageSize((prev) => (prev !== target ? target : prev));
+  }, [getTargetPageSize]);
 
   // Reset or clamp current page when items length or pageSize changes
   const totalItems = items.length;

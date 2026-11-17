@@ -110,7 +110,7 @@ export const DataTablePagination: React.FC<IDataTablePaginationProps> = ({
 
   return (
     <div
-      className={`border-t border-slate-200/80 bg-white sm:bg-slate-50/50 px-4 py-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 select-none ${className}`}
+      className={`border-t border-slate-200/80 bg-white sm:bg-slate-50/50 px-4 py-1.5 sm:py-2 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-1.5 select-none ${className}`}
     >
       {/* Left Side: Summary Typography */}
       <div className="text-xs sm:text-sm text-slate-600 font-medium order-2 sm:order-1 text-center sm:text-left">

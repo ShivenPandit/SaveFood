@@ -107,27 +107,28 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
     };
   }, [isAdmin]);
 
-  // Lock dashboard scrollbar only on large desktop screens to prevent bounce, while keeping mobile scroll smooth
+  // Lock scrollbar on desktop screens for home and table views to eliminate window scrollbars and fit viewport cleanly
   React.useEffect(() => {
-    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024 && window.innerHeight >= 850;
+    const updateScrollLock = (): void => {
+      const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+      const isNoScrollView =
+        currentView === "home" ||
+        currentView === "my-requests" ||
+        currentView === "all-requests";
 
-    if (currentView === "home" && isDesktop) {
-      document.body.classList.add("savefood-dashboard-no-scroll");
-      document.documentElement.classList.add("savefood-dashboard-no-scroll");
-    } else {
-      document.body.classList.remove("savefood-dashboard-no-scroll");
-      document.documentElement.classList.remove("savefood-dashboard-no-scroll");
-    }
-
-    const handleResize = (): void => {
-      const desktopNow = window.innerWidth >= 1024 && window.innerHeight >= 850;
-      if (currentView === "home" && desktopNow) {
+      if (isNoScrollView && isDesktop) {
         document.body.classList.add("savefood-dashboard-no-scroll");
         document.documentElement.classList.add("savefood-dashboard-no-scroll");
       } else {
         document.body.classList.remove("savefood-dashboard-no-scroll");
         document.documentElement.classList.remove("savefood-dashboard-no-scroll");
       }
+    };
+
+    updateScrollLock();
+
+    const handleResize = (): void => {
+      updateScrollLock();
     };
 
     window.addEventListener("resize", handleResize);
@@ -237,10 +238,10 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
         minHeight: "100vh",
         backgroundColor: "#F8FAFC",
       }}
-      className="savefood-canvas-breakout w-full max-w-none flex flex-col min-h-screen text-slate-800 antialiased font-sans select-none box-border overflow-y-auto sm:overflow-y-visible"
+      className="savefood-canvas-breakout w-full max-w-none flex flex-col min-h-screen text-slate-800 antialiased font-sans select-none box-border"
     >
       {/* 1. Top Navbar: Vedanta Logo, Title, Role Pill & User Profile */}
-      <header className="h-12 sm:h-13 lg:h-14 bg-white border-b border-slate-200/90 shrink-0 shadow-2xs z-30 sticky top-0 w-full select-none px-6 lg:px-8 flex items-center justify-between">
+      <header className="h-12 sm:h-13 bg-white border-b border-slate-200/90 shrink-0 shadow-2xs z-30 sticky top-0 w-full select-none px-4 sm:px-8 flex items-center justify-between">
         {/* Left Side: Brand Logo + System Identity */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
           <img
@@ -519,8 +520,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {currentView === "my-requests" && (
         <main
-          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
-          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
+          style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}
+          className="w-full box-border px-3.5 sm:px-8 py-2 sm:py-2.5"
         >
           <MyMealOptOuts
             context={props.newcontext}
@@ -536,8 +537,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {currentView === "all-requests" && isAdmin && (
         <main
-          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
-          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
+          style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}
+          className="w-full box-border px-3.5 sm:px-8 py-2 sm:py-2.5"
         >
           <ReportsDashboard
             context={props.newcontext}
@@ -552,7 +553,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       {currentView === "reports" && isAdmin && (
         <main
           style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
-          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
+          className="w-full box-border px-3.5 sm:px-8 py-2.5 sm:py-3"
         >
           <ReportsDashboard
             context={props.newcontext}
@@ -576,27 +577,29 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
         </main>
       )}
 
-      {/* 4. Compact Single-Row Corporate Footer Pinned Flush to Bottom */}
-      <footer
-        style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0" }}
-        className="select-none shrink-0 mt-auto w-full px-4 sm:px-8 py-2.5 sm:py-2"
-      >
-        <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[11px] sm:text-xs text-slate-500 font-medium gap-1.5 sm:gap-0">
-          <span>© Vedanta Resources Ltd. • Save Food Management System</span>
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center sm:justify-end text-[10.5px] sm:text-[11.5px]">
-            <span className="font-extrabold text-[#003865]">Cut-Off Timings (IST):</span>
-            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200/90 px-2 py-0.5 rounded-full font-bold">
-              <span>🍳</span> Breakfast: 08:00 PM (Prev Day)
-            </span>
-            <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200/90 px-2 py-0.5 rounded-full font-bold">
-              <span>🥗</span> Lunch: 10:00 AM
-            </span>
-            <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-800 border border-purple-200/90 px-2 py-0.5 rounded-full font-bold">
-              <span>🍲</span> Dinner: 06:00 PM
-            </span>
+      {/* 4. Compact Single-Row Corporate Footer Pinned Flush to Bottom (Home Dashboard Only) */}
+      {currentView === "home" && (
+        <footer
+          style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0" }}
+          className="select-none shrink-0 mt-auto w-full px-4 sm:px-8 py-2.5 sm:py-2"
+        >
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[11px] sm:text-xs text-slate-500 font-medium gap-1.5 sm:gap-0">
+            <span>© Vedanta Resources Ltd. • Save Food Management System</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center sm:justify-end text-[10.5px] sm:text-[11.5px]">
+              <span className="font-extrabold text-[#003865]">Cut-Off Timings (IST):</span>
+              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200/90 px-2 py-0.5 rounded-full font-bold">
+                <span>🍳</span> Breakfast: 08:00 PM (Prev Day)
+              </span>
+              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200/90 px-2 py-0.5 rounded-full font-bold">
+                <span>🥗</span> Lunch: 10:00 AM
+              </span>
+              <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-800 border border-purple-200/90 px-2 py-0.5 rounded-full font-bold">
+                <span>🍲</span> Dinner: 06:00 PM
+              </span>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 };

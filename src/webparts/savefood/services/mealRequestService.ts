@@ -22,8 +22,31 @@ export class MealRequestService {
   private static _listFieldsCache: { [listName: string]: any[] } = {};
   private static _cachedAllRequests: IPagedResult<IMealOptOutRequestItem> | null = null;
   private static _cachedAllRequestsTimestamp: number = 0;
+  private static _cachedMyRequests: { [userId: number]: { data: IMealOptOutRequestItem[]; timestamp: number } } = {};
   private static _cachedLocations: ILocationMasterItem[] | null = null;
   private static _cachedLocationsTimestamp: number = 0;
+
+  /**
+   * Synchronously checks if My Requests data is already cached in memory
+   */
+  public static getCachedMyMealOptOuts(userId: number): IMealOptOutRequestItem[] | null {
+    if (!userId || userId <= 0) return null;
+    const entry = this._cachedMyRequests[userId];
+    if (entry && Date.now() - entry.timestamp < 60000) {
+      return entry.data;
+    }
+    return null;
+  }
+
+  /**
+   * Synchronously checks if All Requests data is already cached in memory
+   */
+  public static getCachedAllMealOptOuts(): IMealOptOutRequestItem[] | null {
+    if (this._cachedAllRequests && Date.now() - this._cachedAllRequestsTimestamp < 60000) {
+      return this._cachedAllRequests.items;
+    }
+    return null;
+  }
 
   /**
    * Clears in-memory caches when new records are written or deleted
@@ -31,6 +54,7 @@ export class MealRequestService {
   public static clearCache(): void {
     this._cachedAllRequests = null;
     this._cachedAllRequestsTimestamp = 0;
+    this._cachedMyRequests = {};
     this._cachedLocations = null;
     this._cachedLocationsTimestamp = 0;
   }
@@ -446,6 +470,14 @@ export class MealRequestService {
     currentUserId: number,
     currentUserEmail: string
   ): Promise<IMealOptOutRequestItem[]> {
+    // Return cached requests immediately if fresh (< 60s)
+    if (currentUserId > 0) {
+      const cached = this.getCachedMyMealOptOuts(currentUserId);
+      if (cached) {
+        return cached;
+      }
+    }
+
     try {
       const filter = currentUserId > 0 ? `Requester/Id eq ${currentUserId}` : "";
       const filterQuery = filter ? `?$filter=${filter}&` : "?";
@@ -483,7 +515,7 @@ export class MealRequestService {
       }
 
       const data = await response.json();
-      return (data?.d?.results || []).map((item: any) => ({
+      const results: IMealOptOutRequestItem[] = (data?.d?.results || []).map((item: any) => ({
         Id: item.Id,
         Title: item.Title,
         MealType: item.MealType,
@@ -498,6 +530,15 @@ export class MealRequestService {
           : undefined,
         Created: item.Created,
       }));
+
+      if (currentUserId > 0) {
+        this._cachedMyRequests[currentUserId] = {
+          data: results,
+          timestamp: Date.now(),
+        };
+      }
+
+      return results;
     } catch (error) {
       console.error("[MealRequestService] getMyMealOptOuts exception:", error);
       return [];

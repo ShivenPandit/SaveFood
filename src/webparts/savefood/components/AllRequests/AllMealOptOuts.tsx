@@ -23,9 +23,13 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   onBack,
   hideBackButton = false,
 }) => {
-  const [requests, setRequests] = React.useState<IMealOptOutRequestItem[]>([]);
+  const cachedInitial = React.useMemo(() => {
+    return MealRequestService.getCachedAllMealOptOuts() || [];
+  }, []);
+
+  const [requests, setRequests] = React.useState<IMealOptOutRequestItem[]>(cachedInitial);
   const [locations, setLocations] = React.useState<ILocationMasterItem[]>([]);
-  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [isLoading, setIsLoading] = React.useState<boolean>(cachedInitial.length === 0);
 
   // Filters: Default to All Dates (null) so all meal records appear immediately
   const todayIST = getCurrentISTDate();
@@ -52,8 +56,10 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
   // 2. Fetch Requests once with high page limit (in-memory filtering for instant UI response)
   const fetchRequests = React.useCallback(
-    async () => {
-      setIsLoading(true);
+    async (silent: boolean = false) => {
+      if (!silent) {
+        setIsLoading(true);
+      }
 
       const paged = await MealRequestService.getAllMealOptOuts(spHttpClient, siteUrl, {
         dateISO: null,
@@ -69,10 +75,12 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   );
 
   React.useEffect(() => {
-    fetchRequests().catch((err: Error) => {
+    const hasCache = cachedInitial.length > 0;
+    fetchRequests(hasCache).catch((err: Error) => {
       console.error(err);
+      setIsLoading(false);
     });
-  }, [fetchRequests]);
+  }, [fetchRequests, cachedInitial]);
 
   // Load next page if needed
   const handleLoadMore = async (): Promise<void> => {
@@ -137,8 +145,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
     endIndex,
   } = useDynamicPagination<IMealOptOutRequestItem>({
     items: filteredRequests,
-    bufferBottom: 32,
-    defaultRowHeight: 52,
+    viewType: "all-requests",
   });
 
   // Reset to first page when filters or search change
@@ -149,21 +156,21 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
       {/* Top Header */}
-      <div className="mb-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="mb-2 sm:mb-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
           {!hideBackButton && <BackButton onClick={onBack} />}
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
               All Meal Opt-Out Requests
             </h2>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Consolidated kitchen catering headcount roster and location-wise opt-out records.
           </p>
         </div>
 
         {/* Count Pill */}
-        <div className="flex items-center gap-2 self-start md:self-auto bg-slate-100 px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-700">
+        <div className="flex items-center gap-1.5 self-start md:self-auto bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-700">
           <span>Total Records Shown:</span>
           <span className="text-[#004B87] text-sm">{filteredRequests.length}</span>
         </div>
@@ -172,26 +179,26 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
       {/* Filter Bar Card */}
       <div
         style={{ height: "auto", flex: "0 0 auto" }}
-        className="bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-4 sm:p-5 mb-3.5"
+        className="bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-2.5 sm:px-4 sm:py-2.5 mb-2 sm:mb-2.5"
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end">
           {/* 1. Date Filter */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
               Filter by Meal Date
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <input
                 type="date"
                 value={filterDate || ""}
                 onChange={(e) => setFilterDate(e.target.value || null)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
+                className="w-full h-8 px-2.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
               />
               <button
                 type="button"
                 onClick={() => setFilterDate(todayISOString)}
                 title="Filter for Today"
-                className={`px-3 h-10 rounded-xl text-xs font-bold border transition cursor-pointer shrink-0 ${
+                className={`px-2.5 h-8 rounded-lg text-xs font-bold border transition cursor-pointer shrink-0 ${
                   filterDate === todayISOString
                     ? "bg-[#004B87] text-white border-[#004B87]"
                     : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
@@ -203,7 +210,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
                 type="button"
                 onClick={() => setFilterDate(null)}
                 title="View All Dates"
-                className={`px-3 h-10 rounded-xl text-xs font-bold border transition cursor-pointer shrink-0 ${
+                className={`px-2.5 h-8 rounded-lg text-xs font-bold border transition cursor-pointer shrink-0 ${
                   filterDate === null
                     ? "bg-[#004B87] text-white border-[#004B87]"
                     : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
@@ -216,7 +223,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
           {/* 2. Location Filter */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
               Filter by Location
             </label>
             <select
@@ -224,7 +231,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
               onChange={(e) =>
                 setFilterLocationId(e.target.value === "all" ? "all" : Number(e.target.value))
               }
-              className="w-full h-10 px-3 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87] bg-white"
+              className="w-full h-8 px-2.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87] bg-white"
             >
               <option value="all">All Mess Locations</option>
               {locations.map((loc) => (
@@ -237,7 +244,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
           {/* 3. Search Field */}
           <div className="lg:col-span-2">
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
               Search by Requester / Email
             </label>
             <div className="relative">
@@ -246,11 +253,11 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
                 placeholder="Search employee name or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-300 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
+                className="w-full h-8 pl-8 pr-3 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
               />
               <svg
                 viewBox="0 0 24 24"
-                className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none"
+                className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.5"
@@ -298,14 +305,14 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
             {/* Desktop Table View (>= 640px) */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10.5px] sm:text-xs">
                   <tr>
-                    <th className="py-3.5 px-4 sm:px-6">Meal Date</th>
-                    <th className="py-3.5 px-4">Meal Type</th>
-                    <th className="py-3.5 px-4">Location</th>
-                    <th className="py-3.5 px-4">Employee / Requester</th>
-                    <th className="py-3.5 px-4">Email</th>
-                    <th className="py-3.5 px-4 sm:px-6 text-right">Submitted Timestamp</th>
+                    <th className="py-2 px-3 sm:px-5">Meal Date</th>
+                    <th className="py-2 px-3">Meal Type</th>
+                    <th className="py-2 px-3">Location</th>
+                    <th className="py-2 px-3">Employee / Requester</th>
+                    <th className="py-2 px-3">Email</th>
+                    <th className="py-2 px-3 sm:px-5 text-right">Submitted Timestamp</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -330,12 +337,12 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
                     return (
                       <tr key={item.Id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4 sm:px-6 font-bold text-slate-900 whitespace-nowrap">
+                        <td className="py-2 px-3 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
                           {formattedMealDate}
                         </td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">
+                        <td className="py-2 px-3 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                               item.MealType === "Breakfast"
                                 ? "bg-amber-50 text-amber-700 border border-amber-200"
                                 : item.MealType === "Lunch"
@@ -346,16 +353,16 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
                             {item.MealType}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
+                        <td className="py-2 px-3 font-semibold text-slate-800 whitespace-nowrap">
                           {item.Location?.Title || "—"}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+                        <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap">
                           {item.Requester?.Title || "Employee"}
                         </td>
-                        <td className="py-3.5 px-4 text-slate-500 font-mono text-xs whitespace-nowrap">
+                        <td className="py-2 px-3 text-slate-500 font-mono text-xs whitespace-nowrap">
                           {item.Requester?.EMail || "—"}
                         </td>
-                        <td className="py-3.5 px-4 sm:px-6 text-right text-slate-500 whitespace-nowrap">
+                        <td className="py-2 px-3 sm:px-5 text-right text-slate-500 whitespace-nowrap">
                           {formattedCreated}
                         </td>
                       </tr>

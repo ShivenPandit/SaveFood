@@ -277,58 +277,13 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         position: absolute !important;
         top: -9999px !important;
       }
-      /* Full-screen desktop dashboard view (>= 1024px width and >= 850px height) */
-      @media (min-width: 1024px) and (min-height: 850px) {
-        body.savefood-dashboard-no-scroll,
-        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
-        body.savefood-dashboard-no-scroll #workbenchPageContent,
-        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
-        body.savefood-dashboard-no-scroll .sp-appRoot,
-        body.savefood-dashboard-no-scroll .sp-pageLayout,
-        body.savefood-dashboard-no-scroll #spPageCanvasContent,
-        html.savefood-dashboard-no-scroll {
-          overflow: hidden !important;
-          overflow-y: hidden !important;
-          overflow-x: hidden !important;
-          height: 100vh !important;
-          min-height: 100vh !important;
-          max-height: 100vh !important;
-        }
-      }
-
-      /* Mobile & tablet view (< 1024px width or < 850px height): Always allow smooth natural touch scrolling */
-      @media (max-width: 1023px), (max-height: 849px) {
-        body,
-        html,
-        body.savefood-dashboard-no-scroll,
-        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
-        body.savefood-dashboard-no-scroll #workbenchPageContent,
-        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
-        body.savefood-dashboard-no-scroll .sp-appRoot,
-        body.savefood-dashboard-no-scroll .sp-pageLayout,
-        body.savefood-dashboard-no-scroll #spPageCanvasContent,
-        html.savefood-dashboard-no-scroll,
-        div[data-automation-id="contentScrollRegion"],
-        #workbenchPageContent,
-        #spPageChromeAppDiv,
-        .sp-appRoot,
-        .sp-pageLayout,
-        .sp-pageLayout-sideNav,
-        #spPageCanvasContent {
-          overflow-y: auto !important;
-          -webkit-overflow-scrolling: touch !important;
-          height: auto !important;
-          max-height: none !important;
-          min-height: 100vh !important;
-        }
-      }
-
       .fixed, [class*="fixed"] {
         margin: 0 !important;
         margin-top: 0 !important;
       }
       html, body {
         overflow-x: hidden !important;
+        max-width: 100% !important;
         background-color: #F8FAFC !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -359,6 +314,54 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         transform: none !important;
         border: none !important;
         -webkit-overflow-scrolling: touch !important;
+      }
+      /* Full-screen desktop dashboard view (>= 768px): Zero scrollbars allowed */
+      @media (min-width: 768px) {
+        body.savefood-dashboard-no-scroll,
+        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
+        body.savefood-dashboard-no-scroll #workbenchPageContent,
+        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
+        body.savefood-dashboard-no-scroll .sp-appRoot,
+        body.savefood-dashboard-no-scroll .sp-pageLayout,
+        body.savefood-dashboard-no-scroll #spPageCanvasContent,
+        body.savefood-dashboard-no-scroll .savefood-canvas-breakout,
+        html.savefood-dashboard-no-scroll {
+          overflow: hidden !important;
+          overflow-y: hidden !important;
+          overflow-x: hidden !important;
+          height: 100vh !important;
+          min-height: 100vh !important;
+          max-height: 100vh !important;
+        }
+      }
+
+      /* Mobile view (< 768px): Allow smooth natural vertical touch scrolling */
+      @media (max-width: 767px) {
+        body,
+        html,
+        body.savefood-dashboard-no-scroll,
+        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
+        body.savefood-dashboard-no-scroll #workbenchPageContent,
+        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
+        body.savefood-dashboard-no-scroll .sp-appRoot,
+        body.savefood-dashboard-no-scroll .sp-pageLayout,
+        body.savefood-dashboard-no-scroll #spPageCanvasContent,
+        body.savefood-dashboard-no-scroll .savefood-canvas-breakout,
+        html.savefood-dashboard-no-scroll,
+        div[data-automation-id="contentScrollRegion"],
+        #workbenchPageContent,
+        #spPageChromeAppDiv,
+        .sp-appRoot,
+        .sp-pageLayout,
+        .sp-pageLayout-sideNav,
+        #spPageCanvasContent,
+        .savefood-canvas-breakout {
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          height: auto !important;
+          max-height: none !important;
+          min-height: 100vh !important;
+        }
       }
       #spPageCanvasContent,
       #spPageCanvasContent > div,
@@ -437,13 +440,13 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         border-radius: 0 !important;
         background-color: #F8FAFC !important;
       }
-      @media (min-width: 1024px) {
-        .savefood-canvas-breakout {
-          width: 100vw !important;
-          margin-left: calc(-50vw + 50%) !important;
-          margin-right: calc(-50vw + 50%) !important;
-          max-width: 100vw !important;
-        }
+      .savefood-canvas-breakout {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
       }
     `;
     document.head.appendChild(this._injectedStyleElement);
@@ -471,6 +474,10 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
 
       let hasAddedNodes = false;
       for (let i = 0; i < mutations.length; i++) {
+        // If mutation is occurring inside our SaveFood webpart, ignore it to prevent page-switching lag
+        if (this.domElement && this.domElement.contains(mutations[i].target as Node)) {
+          continue;
+        }
         if (mutations[i].addedNodes && mutations[i].addedNodes.length > 0) {
           hasAddedNodes = true;
           break;
