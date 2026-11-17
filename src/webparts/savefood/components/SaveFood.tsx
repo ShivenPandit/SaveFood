@@ -107,16 +107,33 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
     };
   }, [isAdmin]);
 
-  // Lock dashboard scrollbar when on the dashboard to ensure the entire page fits cleanly
+  // Lock dashboard scrollbar only on large desktop screens to prevent bounce, while keeping mobile scroll smooth
   React.useEffect(() => {
-    if (currentView === "home") {
+    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024 && window.innerHeight >= 850;
+
+    if (currentView === "home" && isDesktop) {
       document.body.classList.add("savefood-dashboard-no-scroll");
       document.documentElement.classList.add("savefood-dashboard-no-scroll");
     } else {
       document.body.classList.remove("savefood-dashboard-no-scroll");
       document.documentElement.classList.remove("savefood-dashboard-no-scroll");
     }
+
+    const handleResize = (): void => {
+      const desktopNow = window.innerWidth >= 1024 && window.innerHeight >= 850;
+      if (currentView === "home" && desktopNow) {
+        document.body.classList.add("savefood-dashboard-no-scroll");
+        document.documentElement.classList.add("savefood-dashboard-no-scroll");
+      } else {
+        document.body.classList.remove("savefood-dashboard-no-scroll");
+        document.documentElement.classList.remove("savefood-dashboard-no-scroll");
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+
     return () => {
+      window.removeEventListener("resize", handleResize);
       document.body.classList.remove("savefood-dashboard-no-scroll");
       document.documentElement.classList.remove("savefood-dashboard-no-scroll");
     };
@@ -220,7 +237,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
         minHeight: "100vh",
         backgroundColor: "#F8FAFC",
       }}
-      className="savefood-canvas-breakout w-full max-w-none flex flex-col min-h-screen text-slate-800 antialiased font-sans select-none box-border"
+      className="savefood-canvas-breakout w-full max-w-none flex flex-col min-h-screen text-slate-800 antialiased font-sans select-none box-border overflow-y-auto sm:overflow-y-visible"
     >
       {/* 1. Top Navbar: Vedanta Logo, Title, Role Pill & User Profile */}
       <header className="h-12 sm:h-13 lg:h-14 bg-white border-b border-slate-200/90 shrink-0 shadow-2xs z-30 sticky top-0 w-full select-none px-6 lg:px-8 flex items-center justify-between">
@@ -300,7 +317,6 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             style={{
               flex: "0 0 auto",
               minHeight: "175px",
-              padding: "24px 36px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -309,7 +325,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
               borderRadius: 0,
               boxSizing: "border-box",
             }}
-            className="relative w-full overflow-hidden bg-gradient-to-r from-[#002D56] via-[#004B87] to-[#046A38] text-white select-none shadow-md shrink-0 rounded-none"
+            className="relative w-full overflow-hidden bg-gradient-to-r from-[#002D56] via-[#004B87] to-[#046A38] text-white select-none shadow-md shrink-0 rounded-none px-5 sm:px-9 py-6 sm:py-7"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#002D56] via-[#004B87]/90 via-55% to-transparent pointer-events-none z-10" />
 
@@ -365,17 +381,14 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             </div>
           </section>
 
-          {/* Card Grid: Padded Container Underneath Banner (2 Columns for both Admin & Employee) */}
+          {/* Card Grid: Padded Container Underneath Banner (1 Col on mobile, 2 Col on sm+ for both Admin & Employee) */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
               gap: "20px",
-              padding: "20px 32px 16px 32px",
               width: "100%",
               boxSizing: "border-box",
             }}
-            className="w-full"
+            className="w-full grid grid-cols-1 sm:grid-cols-2 p-4 sm:px-8 sm:pt-5 sm:pb-4"
           >
             {visibleCards.map((card) => {
               const Illustration = card.illustration;
@@ -488,8 +501,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       {/* Child Views */}
       {currentView === "create" && (
         <main
-          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", padding: "16px 32px" }}
-          className="w-full box-border"
+          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
+          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
         >
           <CreateMealOptOut
             context={props.newcontext}
@@ -506,8 +519,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {currentView === "my-requests" && (
         <main
-          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", padding: "16px 32px" }}
-          className="w-full box-border"
+          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
+          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
         >
           <MyMealOptOuts
             context={props.newcontext}
@@ -523,8 +536,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {currentView === "all-requests" && isAdmin && (
         <main
-          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", padding: "16px 32px" }}
-          className="w-full box-border"
+          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
+          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
         >
           <ReportsDashboard
             context={props.newcontext}
@@ -538,8 +551,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {currentView === "reports" && isAdmin && (
         <main
-          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", padding: "16px 32px" }}
-          className="w-full box-border"
+          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
+          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
         >
           <ReportsDashboard
             context={props.newcontext}
@@ -553,8 +566,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {currentView === "manual" && (
         <main
-          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", padding: "16px 32px" }}
-          className="w-full box-border"
+          style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
+          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
         >
           <UserManual
             onBack={() => handleNavigate("home")}
@@ -565,8 +578,8 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
       {/* 4. Compact Single-Row Corporate Footer Pinned Flush to Bottom */}
       <footer
-        style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0", padding: "8px 32px" }}
-        className="select-none shrink-0 mt-auto w-full"
+        style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0" }}
+        className="select-none shrink-0 mt-auto w-full px-4 sm:px-8 py-2.5 sm:py-2"
       >
         <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[11px] sm:text-xs text-slate-500 font-medium gap-1.5 sm:gap-0">
           <span>© Vedanta Resources Ltd. • Save Food Management System</span>

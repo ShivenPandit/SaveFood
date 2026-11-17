@@ -32,7 +32,7 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
     let isMounted = true;
     MealRequestService.getAllMealOptOuts(spHttpClient, siteUrl, {
       dateISO: null, // all records
-      pageSize: 500,
+      pageSize: 4800,
     })
       .then((res) => {
         if (isMounted) {

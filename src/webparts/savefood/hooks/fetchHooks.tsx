@@ -351,7 +351,7 @@ export const useListOperations = () => {
     let allItems: any[] = [];
     let nextUrl:
       | string
-      | null = `${siteUrl}/_api/web/lists/getbytitle('${listName}')/items${select}&$top=5000`;
+      | null = `${siteUrl}/_api/web/lists/getbytitle('${listName}')/items${select}&$top=4800`;
 
     try {
       while (nextUrl) {

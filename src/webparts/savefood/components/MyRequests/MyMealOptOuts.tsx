@@ -5,6 +5,8 @@ import { IMealOptOutRequestItem, MealType } from "../../models/IMealOptOut";
 import { MealRequestService } from "../../services/mealRequestService";
 import { validateMealCutOff } from "../../services/cutOffService";
 import { BackButton } from "../Common/BackButton";
+import { useDynamicPagination } from "../../hooks/useDynamicPagination";
+import { DataTablePagination } from "../Common/DataTablePagination";
 
 export interface IMyMealOptOutsProps {
   context: WebPartContext;
@@ -92,6 +94,27 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
       return matchMeal && matchLoc;
     });
   }, [requests, selectedMealFilter, searchLocation]);
+
+  // Dynamic Viewport-Aware Pagination
+  const {
+    containerRef,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems,
+    paginatedItems,
+    startIndex,
+    endIndex,
+  } = useDynamicPagination<IMealOptOutRequestItem>({
+    items: filteredRequests,
+    bufferBottom: 32,
+    defaultRowHeight: 46,
+  });
+
+  // Reset to first page when search filter changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedMealFilter, searchLocation, setCurrentPage]);
 
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
@@ -190,6 +213,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
 
       {/* Main Table Card */}
       <div
+        ref={containerRef}
         style={{ height: "auto", flex: "0 0 auto" }}
         className="w-full bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm overflow-hidden"
       >
@@ -233,98 +257,197 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
             )}
           </div>
         ) : (
-          <div className="w-full overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10.5px] sm:text-xs">
-                <tr>
-                  <th className="py-3 px-4 sm:px-6">Meal Date</th>
-                  <th className="py-3 px-4">Meal Type</th>
-                  <th className="py-3 px-4">Canteen Location</th>
-                  <th className="py-3 px-4">Submitted On</th>
-                  <th className="py-3 px-4 text-center">Cut-Off Status</th>
-                  <th className="py-3 px-4 sm:px-6 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {filteredRequests.map((item) => {
-                  const mealDateObj = new Date(item.MealDate);
-                  const formattedMealDate = mealDateObj.toLocaleDateString("en-IN", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  });
+          <>
+            {/* Desktop Table View (>= 640px) */}
+            <div className="hidden sm:block w-full overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10.5px] sm:text-xs">
+                  <tr>
+                    <th className="py-3 px-4 sm:px-6">Meal Date</th>
+                    <th className="py-3 px-4">Meal Type</th>
+                    <th className="py-3 px-4">Canteen Location</th>
+                    <th className="py-3 px-4">Submitted On</th>
+                    <th className="py-3 px-4 text-center">Cut-Off Status</th>
+                    <th className="py-3 px-4 sm:px-6 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {paginatedItems.map((item) => {
+                    const mealDateObj = new Date(item.MealDate);
+                    const formattedMealDate = mealDateObj.toLocaleDateString("en-IN", {
+                      weekday: "short",
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    });
 
-                  const createdObj = item.Created ? new Date(item.Created) : null;
-                  const formattedCreated = createdObj
-                    ? createdObj.toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "—";
+                    const createdObj = item.Created ? new Date(item.Created) : null;
+                    const formattedCreated = createdObj
+                      ? createdObj.toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—";
 
-                  const cutOffCheck = validateMealCutOff(mealDateObj, item.MealType);
-                  const canCancel = cutOffCheck.isValid;
+                    const cutOffCheck = validateMealCutOff(mealDateObj, item.MealType);
+                    const canCancel = cutOffCheck.isValid;
 
-                  return (
-                    <tr key={item.Id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-4 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
+                    return (
+                      <tr key={item.Id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 px-4 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
+                          {formattedMealDate}
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
+                              item.MealType === "Breakfast"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : item.MealType === "Lunch"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-purple-50 text-purple-700 border border-purple-200"
+                            }`}
+                          >
+                            <span>{item.MealType === "Breakfast" ? "🍳" : item.MealType === "Lunch" ? "🥗" : "🍲"}</span>
+                            <span>{item.MealType}</span>
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap">
+                          {item.Location?.Title || "—"}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap text-[11px]">
+                          {formattedCreated}
+                        </td>
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          {canCancel ? (
+                            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Active (Modifiable)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-[10.5px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                              Locked (Passed)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-4 sm:px-5 text-right whitespace-nowrap">
+                          {canCancel ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCancel(item)}
+                              disabled={cancellingId === item.Id}
+                              className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer disabled:opacity-50"
+                            >
+                              {cancellingId === item.Id ? "Cancelling..." : "Retract Opt-Out"}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-normal">Past Cut-off</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View (< 640px) */}
+            <div className="sm:hidden divide-y divide-slate-100">
+              {paginatedItems.map((item) => {
+                const mealDateObj = new Date(item.MealDate);
+                const formattedMealDate = mealDateObj.toLocaleDateString("en-IN", {
+                  weekday: "short",
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                });
+
+                const createdObj = item.Created ? new Date(item.Created) : null;
+                const formattedCreated = createdObj
+                  ? createdObj.toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "—";
+
+                const cutOffCheck = validateMealCutOff(mealDateObj, item.MealType);
+                const canCancel = cutOffCheck.isValid;
+
+                return (
+                  <div
+                    key={item.Id}
+                    data-role="list-item"
+                    className="p-4 hover:bg-slate-50/70 transition-colors flex flex-col gap-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-slate-900 text-sm">
                         {formattedMealDate}
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
-                            item.MealType === "Breakfast"
-                              ? "bg-amber-50 text-amber-700 border border-amber-200"
-                              : item.MealType === "Lunch"
-                              ? "bg-blue-50 text-blue-700 border border-blue-200"
-                              : "bg-purple-50 text-purple-700 border border-purple-200"
-                          }`}
-                        >
-                          <span>{item.MealType === "Breakfast" ? "🍳" : item.MealType === "Lunch" ? "🥗" : "🍲"}</span>
-                          <span>{item.MealType}</span>
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap">
-                        {item.Location?.Title || "—"}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap text-[11px]">
-                        {formattedCreated}
-                      </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          item.MealType === "Breakfast"
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : item.MealType === "Lunch"
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            : "bg-purple-50 text-purple-700 border border-purple-200"
+                        }`}
+                      >
+                        <span>{item.MealType === "Breakfast" ? "🍳" : item.MealType === "Lunch" ? "🥗" : "🍲"}</span>
+                        <span>{item.MealType}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-600">
+                      <div className="flex items-center gap-1 font-medium">
+                        <span className="text-slate-400">📍</span>
+                        <span className="font-semibold text-slate-800">{item.Location?.Title || "—"}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-400">{formattedCreated}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                      <div>
                         {canCancel ? (
                           <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Active (Modifiable)
+                            Active
                           </span>
                         ) : (
                           <span className="inline-flex items-center text-[10.5px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                            Locked (Passed)
+                            Passed
                           </span>
                         )}
-                      </td>
-                      <td className="py-2.5 px-4 sm:px-5 text-right whitespace-nowrap">
-                        {canCancel ? (
-                          <button
-                            type="button"
-                            onClick={() => handleCancel(item)}
-                            disabled={cancellingId === item.Id}
-                            className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer disabled:opacity-50"
-                          >
-                            {cancellingId === item.Id ? "Cancelling..." : "Retract Opt-Out"}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400 font-normal">Past Cut-off</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+
+                      {canCancel && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancel(item)}
+                          disabled={cancellingId === item.Id}
+                          className="min-h-[38px] px-3 inline-flex items-center text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {cancellingId === item.Id ? "Cancelling..." : "Retract Opt-Out"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Dynamic Pagination Bar */}
+            <DataTablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
     </div>

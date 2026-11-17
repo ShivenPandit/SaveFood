@@ -20,6 +20,20 @@ export interface IPagedResult<T> {
 export class MealRequestService {
   private static _itemEntityTypeCache: { [listName: string]: string } = {};
   private static _listFieldsCache: { [listName: string]: any[] } = {};
+  private static _cachedAllRequests: IPagedResult<IMealOptOutRequestItem> | null = null;
+  private static _cachedAllRequestsTimestamp: number = 0;
+  private static _cachedLocations: ILocationMasterItem[] | null = null;
+  private static _cachedLocationsTimestamp: number = 0;
+
+  /**
+   * Clears in-memory caches when new records are written or deleted
+   */
+  public static clearCache(): void {
+    this._cachedAllRequests = null;
+    this._cachedAllRequestsTimestamp = 0;
+    this._cachedLocations = null;
+    this._cachedLocationsTimestamp = 0;
+  }
 
   /**
    * Retrieves the ListItemEntityTypeFullName dynamically from the list (with caching)
@@ -127,7 +141,7 @@ export class MealRequestService {
     siteUrl: string
   ): Promise<ILocationMasterItem[]> {
     try {
-      const url = `${siteUrl}/_api/web/lists/getbytitle('LocationMaster')/items?$filter=IsActive eq 1&$select=Id,Title,IsActive&$orderby=Title asc`;
+      const url = `${siteUrl}/_api/web/lists/getbytitle('LocationMaster')/items?$filter=IsActive eq 1&$select=Id,Title,IsActive&$orderby=Title asc&$top=4800`;
       const response: SPHttpClientResponse = await spHttpClient.get(
         url,
         SPHttpClient.configurations.v1,
@@ -163,8 +177,12 @@ export class MealRequestService {
     spHttpClient: SPHttpClient,
     siteUrl: string
   ): Promise<ILocationMasterItem[]> {
+    if (this._cachedLocations && Date.now() - this._cachedLocationsTimestamp < 300000) {
+      return this._cachedLocations;
+    }
+
     try {
-      const url = `${siteUrl}/_api/web/lists/getbytitle('LocationMaster')/items?$select=Id,Title,IsActive&$orderby=Title asc`;
+      const url = `${siteUrl}/_api/web/lists/getbytitle('LocationMaster')/items?$select=Id,Title,IsActive&$orderby=Title asc&$top=4800`;
       const response: SPHttpClientResponse = await spHttpClient.get(
         url,
         SPHttpClient.configurations.v1,
@@ -181,11 +199,15 @@ export class MealRequestService {
       }
 
       const data = await response.json();
-      return (data?.d?.results || []).map((item: any) => ({
+      const locations = (data?.d?.results || []).map((item: any) => ({
         Id: item.Id,
         Title: item.Title,
         IsActive: item.IsActive,
       }));
+
+      this._cachedLocations = locations;
+      this._cachedLocationsTimestamp = Date.now();
+      return locations;
     } catch (error) {
       console.error("[MealRequestService] getAllLocations error:", error);
       return [];
@@ -402,6 +424,7 @@ export class MealRequestService {
       }
 
       const json = await response.json();
+      this.clearCache();
       return {
         success: true,
         item: json.d,
@@ -426,7 +449,7 @@ export class MealRequestService {
     try {
       const filter = currentUserId > 0 ? `Requester/Id eq ${currentUserId}` : "";
       const filterQuery = filter ? `?$filter=${filter}&` : "?";
-      const url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items${filterQuery}$select=Id,Title,MealType,MealDate,Created,Location/Id,Location/Title,Requester/Id,Requester/Title,Requester/EMail&$expand=Location,Requester&$orderby=MealDate desc&$top=500`;
+      const url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items${filterQuery}$select=Id,Title,MealType,MealDate,Created,Location/Id,Location/Title,Requester/Id,Requester/Title,Requester/EMail&$expand=Location,Requester&$orderby=MealDate desc&$top=4800`;
 
       let response: SPHttpClientResponse = await spHttpClient.get(
         url,
@@ -441,7 +464,7 @@ export class MealRequestService {
 
       // Graceful fallback if $expand is invalid (e.g. if Location or Requester were created as Text)
       if (!response.ok) {
-        const fallbackUrl = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$orderby=MealDate desc&$top=500`;
+        const fallbackUrl = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$orderby=MealDate desc&$top=4800`;
         response = await spHttpClient.get(
           fallbackUrl,
           SPHttpClient.configurations.v1,
@@ -494,6 +517,11 @@ export class MealRequestService {
       pageSize?: number;
     }
   ): Promise<IPagedResult<IMealOptOutRequestItem>> {
+    const isFullQuery = !options.nextUrl && !options.dateISO && !options.locationId;
+    if (isFullQuery && this._cachedAllRequests && Date.now() - this._cachedAllRequestsTimestamp < 30000) {
+      return this._cachedAllRequests;
+    }
+
     try {
       let url = options.nextUrl;
 
@@ -510,7 +538,7 @@ export class MealRequestService {
         }
 
         const filterQuery = filters.length > 0 ? `&$filter=${filters.join(" and ")}` : "";
-        const top = options.pageSize || 50;
+        const top = options.pageSize || 4800;
 
         url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$select=Id,Title,MealType,MealDate,Created,Location/Id,Location/Title,Requester/Id,Requester/Title,Requester/EMail&$expand=Location,Requester&$orderby=MealDate desc&$top=${top}${filterQuery}`;
       }
@@ -528,7 +556,7 @@ export class MealRequestService {
 
       // Fallback without $expand if needed
       if (!response.ok && !options.nextUrl) {
-        const top = options.pageSize || 50;
+        const top = options.pageSize || 4800;
         const fallbackUrl = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$orderby=MealDate desc&$top=${top}`;
         response = await spHttpClient.get(
           fallbackUrl,
@@ -566,10 +594,17 @@ export class MealRequestService {
         Created: item.Created,
       }));
 
-      return {
+      const result: IPagedResult<IMealOptOutRequestItem> = {
         items,
         nextUrl: nextLink,
       };
+
+      if (isFullQuery) {
+        this._cachedAllRequests = result;
+        this._cachedAllRequestsTimestamp = Date.now();
+      }
+
+      return result;
     } catch (error) {
       console.error("[MealRequestService] getAllMealOptOuts error:", error);
       return { items: [], nextUrl: null };
@@ -609,6 +644,7 @@ export class MealRequestService {
       });
 
       if (response.status === 204 || response.status === 200 || response.status === 404) {
+        this.clearCache();
         return { success: true };
       }
 

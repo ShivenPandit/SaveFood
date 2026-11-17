@@ -46,6 +46,7 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
   };
   private _domObserver: MutationObserver | null = null;
   private _injectedStyleElement: HTMLStyleElement | null = null;
+  private _isApplyingDomFixes: boolean = false;
 
   public async getCurrentUserGroups(
     requester: SPHttpClient,
@@ -276,22 +277,8 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         position: absolute !important;
         top: -9999px !important;
       }
-      body.savefood-dashboard-no-scroll,
-      body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
-      body.savefood-dashboard-no-scroll #workbenchPageContent,
-      body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
-      body.savefood-dashboard-no-scroll .sp-appRoot,
-      body.savefood-dashboard-no-scroll .sp-pageLayout,
-      body.savefood-dashboard-no-scroll #spPageCanvasContent,
-      html.savefood-dashboard-no-scroll {
-        overflow: hidden !important;
-        overflow-y: hidden !important;
-        overflow-x: hidden !important;
-        height: 100vh !important;
-        min-height: 100vh !important;
-        max-height: 100vh !important;
-      }
-      @media (max-height: 850px) {
+      /* Full-screen desktop dashboard view (>= 1024px width and >= 850px height) */
+      @media (min-width: 1024px) and (min-height: 850px) {
         body.savefood-dashboard-no-scroll,
         body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
         body.savefood-dashboard-no-scroll #workbenchPageContent,
@@ -300,19 +287,48 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         body.savefood-dashboard-no-scroll .sp-pageLayout,
         body.savefood-dashboard-no-scroll #spPageCanvasContent,
         html.savefood-dashboard-no-scroll {
-          overflow-y: auto !important;
-          max-height: none !important;
+          overflow: hidden !important;
+          overflow-y: hidden !important;
+          overflow-x: hidden !important;
+          height: 100vh !important;
+          min-height: 100vh !important;
+          max-height: 100vh !important;
         }
       }
+
+      /* Mobile & tablet view (< 1024px width or < 850px height): Always allow smooth natural touch scrolling */
+      @media (max-width: 1023px), (max-height: 849px) {
+        body,
+        html,
+        body.savefood-dashboard-no-scroll,
+        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
+        body.savefood-dashboard-no-scroll #workbenchPageContent,
+        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
+        body.savefood-dashboard-no-scroll .sp-appRoot,
+        body.savefood-dashboard-no-scroll .sp-pageLayout,
+        body.savefood-dashboard-no-scroll #spPageCanvasContent,
+        html.savefood-dashboard-no-scroll,
+        div[data-automation-id="contentScrollRegion"],
+        #workbenchPageContent,
+        #spPageChromeAppDiv,
+        .sp-appRoot,
+        .sp-pageLayout,
+        .sp-pageLayout-sideNav,
+        #spPageCanvasContent {
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          height: auto !important;
+          max-height: none !important;
+          min-height: 100vh !important;
+        }
+      }
+
       .fixed, [class*="fixed"] {
         margin: 0 !important;
         margin-top: 0 !important;
       }
       html, body {
-        overflow-y: hidden !important;
         overflow-x: hidden !important;
-        height: 100% !important;
-        min-height: 100% !important;
         background-color: #F8FAFC !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -435,50 +451,44 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
 
   private _setupDomObserver(): void {
     const hideExtraNodes = (): void => {
-      $(
-        "#SuiteNavWrapper, #suiteBarTop, #suiteBarDelta, #suiteBarWrapper, #suiteBar, #O365_NavHeader, #mru_nav_header, #headerRegion, .o365cs-base, .o365cs-nav-header, #spSiteHeader, #spTopPlaceholder, .spTopPlaceholder, #spTopContentPlaceholder, div[data-automation-id='SiteHeader'], div[data-automation-id='pageHeader'], div[data-automation-id='SimpleFooter'], div[data-automation-id='SiteHeaderOverlay'], div[data-automation-id='gradientBox'], div[data-automation-id='LeftNavGroups'], #spCommandBar, .commandBarWrapper, div[id*='CommandBar'], div[class*='commandBarWrapper'], #sp-appBar, [data-automation-id='sp-appBar'], [data-automation-id='searchBox'], #O365_SearchBoxContainer, #searchBoxPositioner",
-      ).hide();
-      if (document.body) {
-        document.body.style.setProperty("margin-top", "0px", "important");
-        document.body.style.setProperty("padding-top", "0px", "important");
-        document.body.style.setProperty("margin-bottom", "0px", "important");
-        document.body.style.setProperty("padding-bottom", "0px", "important");
+      if (this._isApplyingDomFixes) return;
+      this._isApplyingDomFixes = true;
+
+      try {
+        $(
+          "#SuiteNavWrapper, #suiteBarTop, #suiteBarDelta, #suiteBarWrapper, #suiteBar, #O365_NavHeader, #mru_nav_header, #headerRegion, .o365cs-base, .o365cs-nav-header, #spSiteHeader, #spTopPlaceholder, .spTopPlaceholder, #spTopContentPlaceholder, div[data-automation-id='SiteHeader'], div[data-automation-id='pageHeader'], div[data-automation-id='SimpleFooter'], div[data-automation-id='SiteHeaderOverlay'], div[data-automation-id='gradientBox'], div[data-automation-id='LeftNavGroups'], #spCommandBar, .commandBarWrapper, div[id*='CommandBar'], div[class*='commandBarWrapper'], #sp-appBar, [data-automation-id='sp-appBar'], [data-automation-id='searchBox'], #O365_SearchBoxContainer, #searchBoxPositioner",
+        ).hide();
+      } finally {
+        this._isApplyingDomFixes = false;
       }
-      if (document.documentElement) {
-        document.documentElement.style.setProperty("margin-top", "0px", "important");
-        document.documentElement.style.setProperty("padding-top", "0px", "important");
-        document.documentElement.style.setProperty("margin-bottom", "0px", "important");
-        document.documentElement.style.setProperty("padding-bottom", "0px", "important");
-      }
-      const scrollRegion = document.querySelector('div[data-automation-id="contentScrollRegion"]') as HTMLElement;
-      if (scrollRegion) {
-        scrollRegion.style.setProperty("margin-top", "0px", "important");
-        scrollRegion.style.setProperty("padding-top", "0px", "important");
-        scrollRegion.style.setProperty("margin-bottom", "0px", "important");
-        scrollRegion.style.setProperty("padding-bottom", "0px", "important");
-        scrollRegion.style.setProperty("top", "0px", "important");
-        scrollRegion.style.setProperty("position", "static", "important");
-      }
-      const chromeApp = document.querySelector("#spPageChromeAppDiv") as HTMLElement;
-      if (chromeApp) {
-        chromeApp.style.setProperty("margin-top", "0px", "important");
-        chromeApp.style.setProperty("padding-top", "0px", "important");
-        chromeApp.style.setProperty("top", "0px", "important");
-      }
-      this._enforceFullBleed();
     };
 
     hideExtraNodes();
 
-    this._domObserver = new MutationObserver(() => {
-      hideExtraNodes();
+    let debounceTimer: number | null = null;
+    this._domObserver = new MutationObserver((mutations) => {
+      if (this._isApplyingDomFixes) return;
+
+      let hasAddedNodes = false;
+      for (let i = 0; i < mutations.length; i++) {
+        if (mutations[i].addedNodes && mutations[i].addedNodes.length > 0) {
+          hasAddedNodes = true;
+          break;
+        }
+      }
+      if (!hasAddedNodes) return;
+
+      if (debounceTimer) {
+        window.clearTimeout(debounceTimer);
+      }
+      debounceTimer = window.setTimeout(() => {
+        hideExtraNodes();
+      }, 120);
     });
 
     this._domObserver.observe(document.body, {
       childList: true,
       subtree: true,
-      attributes: true,
-      attributeFilter: ["style", "class"],
     });
   }
 

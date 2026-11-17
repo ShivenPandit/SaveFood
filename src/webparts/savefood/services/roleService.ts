@@ -33,7 +33,7 @@ export async function resolveUserRole(
   const normLogin = normalizeIdentity(userLoginName || "");
 
   try {
-    const listUrl = `${siteUrl}/_api/web/lists/getbytitle('RoleMatrix')/items?$filter=Title eq 'Application Roles'&$select=Id,Title,Admin/Id,Admin/Title,Admin/EMail,Admin/UserName&$expand=Admin`;
+    const listUrl = `${siteUrl}/_api/web/lists/getbytitle('RoleMatrix')/items?$filter=Title eq 'Application Roles'&$select=Id,Title,Admin/Id,Admin/Title,Admin/EMail,Admin/UserName&$expand=Admin&$top=4800`;
 
     const response: SPHttpClientResponse = await spHttpClient.get(
       listUrl,
