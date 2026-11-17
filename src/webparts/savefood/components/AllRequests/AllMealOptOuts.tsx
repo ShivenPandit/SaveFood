@@ -12,12 +12,14 @@ export interface IAllMealOptOutsProps {
   spHttpClient: SPHttpClient;
   siteUrl: string;
   onBack: () => void;
+  hideBackButton?: boolean;
 }
 
 export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   spHttpClient,
   siteUrl,
   onBack,
+  hideBackButton = false,
 }) => {
   const [requests, setRequests] = React.useState<IMealOptOutRequestItem[]>([]);
   const [locations, setLocations] = React.useState<ILocationMasterItem[]>([]);
@@ -101,14 +103,11 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
       {/* Top Header */}
       <div className="mb-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <BackButton onClick={onBack} />
+          {!hideBackButton && <BackButton onClick={onBack} />}
           <div className="flex items-center gap-2.5">
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               All Meal Opt-Out Requests
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#004B87] text-white">
-              Admin Roster
-            </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Consolidated kitchen catering headcount roster and location-wise opt-out records.

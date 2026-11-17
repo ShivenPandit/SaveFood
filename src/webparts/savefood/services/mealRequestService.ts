@@ -18,6 +18,107 @@ export interface IPagedResult<T> {
  * Service handling all SharePoint List operations for the Save Food system.
  */
 export class MealRequestService {
+  private static _itemEntityTypeCache: { [listName: string]: string } = {};
+  private static _listFieldsCache: { [listName: string]: any[] } = {};
+
+  /**
+   * Retrieves the ListItemEntityTypeFullName dynamically from the list (with caching)
+   */
+  public static async getItemEntityType(
+    spHttpClient: SPHttpClient,
+    siteUrl: string,
+    listName: string
+  ): Promise<string> {
+    if (this._itemEntityTypeCache[listName]) {
+      return this._itemEntityTypeCache[listName];
+    }
+    try {
+      const response = await spHttpClient.get(
+        `${siteUrl}/_api/web/lists/getbytitle('${listName}')?$select=ListItemEntityTypeFullName`,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;odata=verbose",
+            "odata-version": "",
+          },
+        }
+      );
+      if (response.ok) {
+        const json = await response.json();
+        const typeName = json?.d?.ListItemEntityTypeFullName;
+        if (typeName) {
+          this._itemEntityTypeCache[listName] = typeName;
+          return typeName;
+        }
+      }
+    } catch (e) {
+      console.warn(`[MealRequestService] getItemEntityType fallback for ${listName}:`, e);
+    }
+    return `SP.Data.${listName}ListItem`;
+  }
+
+  /**
+   * Retrieves list fields metadata to adapt to column types (Lookup vs Text vs User)
+   */
+  public static async getListFields(
+    spHttpClient: SPHttpClient,
+    siteUrl: string,
+    listName: string
+  ): Promise<any[]> {
+    if (this._listFieldsCache[listName]) {
+      return this._listFieldsCache[listName];
+    }
+    try {
+      const response = await spHttpClient.get(
+        `${siteUrl}/_api/web/lists/getbytitle('${listName}')/fields?$select=InternalName,TypeAsString,Title`,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;odata=verbose",
+            "odata-version": "",
+          },
+        }
+      );
+      if (response.ok) {
+        const json = await response.json();
+        const fields = json?.d?.results || [];
+        this._listFieldsCache[listName] = fields;
+        return fields;
+      }
+    } catch (e) {
+      console.warn(`[MealRequestService] getListFields fallback for ${listName}:`, e);
+    }
+    return [];
+  }
+
+  /**
+   * Resolves the current user's SharePoint numeric ID from _api/web/currentuser
+   */
+  public static async resolveCurrentUserId(
+    spHttpClient: SPHttpClient,
+    siteUrl: string
+  ): Promise<number> {
+    try {
+      const response = await spHttpClient.get(
+        `${siteUrl}/_api/web/currentuser?$select=Id`,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;odata=verbose",
+            "odata-version": "",
+          },
+        }
+      );
+      if (response.ok) {
+        const json = await response.json();
+        return json?.d?.Id ?? -1;
+      }
+    } catch {
+      // fallback
+    }
+    return -1;
+  }
+
   /**
    * 1. Fetch active dining locations from LocationMaster for request form dropdowns
    */
@@ -107,6 +208,7 @@ export class MealRequestService {
         "Content-type": "application/json;odata=verbose",
         "X-HTTP-Method": "MERGE",
         "IF-MATCH": "*",
+        "odata-version": "",
       },
       body: JSON.stringify({ IsActive: isActive }),
     });
@@ -121,13 +223,19 @@ export class MealRequestService {
     siteUrl: string,
     title: string
   ): Promise<ILocationMasterItem | null> {
+    const entityType = await this.getItemEntityType(spHttpClient, siteUrl, "LocationMaster");
     const url = `${siteUrl}/_api/web/lists/getbytitle('LocationMaster')/items`;
     const response = await spHttpClient.post(url, SPHttpClient.configurations.v1, {
       headers: {
         Accept: "application/json;odata=verbose",
         "Content-type": "application/json;odata=verbose",
+        "odata-version": "",
       },
-      body: JSON.stringify({ Title: title.trim(), IsActive: true }),
+      body: JSON.stringify({
+        __metadata: { type: entityType },
+        Title: title.trim(),
+        IsActive: true,
+      }),
     });
 
     if (!response.ok) return null;
@@ -150,6 +258,7 @@ export class MealRequestService {
     mealType: MealType
   ): Promise<boolean> {
     try {
+      if (!userId || userId <= 0) return false;
       const formattedDate = mealDateISO.split("T")[0];
       const url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$filter=Requester/Id eq ${userId} and MealType eq '${mealType}' and MealDate ge datetime'${formattedDate}T00:00:00Z' and MealDate le datetime'${formattedDate}T23:59:59Z'&$select=Id`;
 
@@ -159,6 +268,7 @@ export class MealRequestService {
         {
           headers: {
             Accept: "application/json;odata=verbose",
+            "odata-version": "",
           },
         }
       );
@@ -191,31 +301,72 @@ export class MealRequestService {
     }
 
     // Check duplicate
-    const isDuplicate = await this.checkDuplicateOptOut(
-      spHttpClient,
-      siteUrl,
-      payload.RequesterId,
-      payload.MealDate,
-      payload.MealType
-    );
+    if (payload.RequesterId && payload.RequesterId > 0) {
+      const isDuplicate = await this.checkDuplicateOptOut(
+        spHttpClient,
+        siteUrl,
+        payload.RequesterId,
+        payload.MealDate,
+        payload.MealType
+      );
 
-    if (isDuplicate) {
-      return {
-        success: false,
-        error: `You have already opted out of ${payload.MealType} on ${payload.MealDate.split("T")[0]}.`,
-      };
+      if (isDuplicate) {
+        return {
+          success: false,
+          error: `You have already opted out of ${payload.MealType} on ${payload.MealDate.split("T")[0]}.`,
+        };
+      }
     }
 
     try {
-      const url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items`;
-      const body = {
+      const entityType = await this.getItemEntityType(spHttpClient, siteUrl, "MealOptOutRequest");
+      const fields = await this.getListFields(spHttpClient, siteUrl, "MealOptOutRequest");
+
+      // Verify user ID
+      let requesterId = payload.RequesterId;
+      if (!requesterId || requesterId <= 0) {
+        requesterId = await this.resolveCurrentUserId(spHttpClient, siteUrl);
+      }
+
+      const body: any = {
+        __metadata: { type: entityType },
         Title: payload.Title,
-        LocationId: payload.LocationId,
         MealType: payload.MealType,
         MealDate: payload.MealDate,
-        RequesterId: payload.RequesterId,
       };
 
+      // Check how Location column was created in SharePoint list:
+      const locationField = fields.find((f: any) => f.InternalName === "Location");
+      if (locationField) {
+        if (locationField.TypeAsString === "Lookup") {
+          body.LocationId = payload.LocationId;
+        } else {
+          // Text or Choice column
+          body.Location = payload.LocationTitle || String(payload.LocationId);
+        }
+      } else {
+        // Fallback default: set LocationId for Lookup
+        body.LocationId = payload.LocationId;
+      }
+
+      // Check how Requester column was created in SharePoint list:
+      const requesterField = fields.find((f: any) => f.InternalName === "Requester");
+      if (requesterField) {
+        if (requesterField.TypeAsString === "User") {
+          if (requesterId > 0) {
+            body.RequesterId = requesterId;
+          }
+        } else {
+          // Text column
+          body.Requester = payload.RequesterEmail || String(requesterId);
+        }
+      } else {
+        if (requesterId > 0) {
+          body.RequesterId = requesterId;
+        }
+      }
+
+      const url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items`;
       const response: SPHttpClientResponse = await spHttpClient.post(
         url,
         SPHttpClient.configurations.v1,
@@ -223,14 +374,30 @@ export class MealRequestService {
           headers: {
             Accept: "application/json;odata=verbose",
             "Content-type": "application/json;odata=verbose",
+            "odata-version": "",
           },
           body: JSON.stringify(body),
         }
       );
 
       if (!response.ok) {
-        const errorJson = await response.json().catch(() => null);
-        const errMsg = errorJson?.error?.message?.value || `HTTP error ${response.status}: ${response.statusText}`;
+        let errMsg = `HTTP error ${response.status}: ${response.statusText}`;
+        try {
+          const rawText = await response.text();
+          try {
+            const errorJson = JSON.parse(rawText);
+            errMsg =
+              errorJson?.error?.message?.value ||
+              errorJson?.["odata.error"]?.message?.value ||
+              errorJson?.message ||
+              rawText;
+          } catch {
+            if (rawText) errMsg = rawText;
+          }
+        } catch {
+          // ignore
+        }
+        console.error("[MealRequestService] createMealOptOut error:", errMsg, "Payload:", body);
         return { success: false, error: errMsg };
       }
 
@@ -257,19 +424,35 @@ export class MealRequestService {
     currentUserEmail: string
   ): Promise<IMealOptOutRequestItem[]> {
     try {
-      // Query filtered by user ID on indexed Requester column
-      const filter = `Requester/Id eq ${currentUserId}`;
-      const url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$filter=${filter}&$select=Id,Title,MealType,MealDate,Created,Location/Id,Location/Title,Requester/Id,Requester/Title,Requester/EMail&$expand=Location,Requester&$orderby=MealDate desc&$top=500`;
+      const filter = currentUserId > 0 ? `Requester/Id eq ${currentUserId}` : "";
+      const filterQuery = filter ? `?$filter=${filter}&` : "?";
+      const url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items${filterQuery}$select=Id,Title,MealType,MealDate,Created,Location/Id,Location/Title,Requester/Id,Requester/Title,Requester/EMail&$expand=Location,Requester&$orderby=MealDate desc&$top=500`;
 
-      const response: SPHttpClientResponse = await spHttpClient.get(
+      let response: SPHttpClientResponse = await spHttpClient.get(
         url,
         SPHttpClient.configurations.v1,
         {
           headers: {
             Accept: "application/json;odata=verbose",
+            "odata-version": "",
           },
         }
       );
+
+      // Graceful fallback if $expand is invalid (e.g. if Location or Requester were created as Text)
+      if (!response.ok) {
+        const fallbackUrl = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$orderby=MealDate desc&$top=500`;
+        response = await spHttpClient.get(
+          fallbackUrl,
+          SPHttpClient.configurations.v1,
+          {
+            headers: {
+              Accept: "application/json;odata=verbose",
+              "odata-version": "",
+            },
+          }
+        );
+      }
 
       if (!response.ok) {
         console.warn(`[MealRequestService] getMyMealOptOuts error: ${response.statusText}`);
@@ -282,10 +465,14 @@ export class MealRequestService {
         Title: item.Title,
         MealType: item.MealType,
         MealDate: item.MealDate,
-        LocationId: item.Location?.Id ?? 0,
-        Location: item.Location ? { Id: item.Location.Id, Title: item.Location.Title } : undefined,
-        RequesterId: item.Requester?.Id ?? 0,
-        Requester: item.Requester ? { Id: item.Requester.Id, Title: item.Requester.Title, EMail: item.Requester.EMail } : undefined,
+        LocationId: item.Location?.Id ?? (typeof item.Location === "number" ? item.Location : 0),
+        Location: item.Location
+          ? (typeof item.Location === "object" ? { Id: item.Location.Id, Title: item.Location.Title } : { Id: 0, Title: String(item.Location) })
+          : undefined,
+        RequesterId: item.Requester?.Id ?? (typeof item.Requester === "number" ? item.Requester : 0),
+        Requester: item.Requester
+          ? (typeof item.Requester === "object" ? { Id: item.Requester.Id, Title: item.Requester.Title, EMail: item.Requester.EMail } : { Id: 0, Title: String(item.Requester) })
+          : undefined,
         Created: item.Created,
       }));
     } catch (error) {
@@ -328,15 +515,32 @@ export class MealRequestService {
         url = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$select=Id,Title,MealType,MealDate,Created,Location/Id,Location/Title,Requester/Id,Requester/Title,Requester/EMail&$expand=Location,Requester&$orderby=MealDate desc&$top=${top}${filterQuery}`;
       }
 
-      const response: SPHttpClientResponse = await spHttpClient.get(
+      let response: SPHttpClientResponse = await spHttpClient.get(
         url,
         SPHttpClient.configurations.v1,
         {
           headers: {
             Accept: "application/json;odata=verbose",
+            "odata-version": "",
           },
         }
       );
+
+      // Fallback without $expand if needed
+      if (!response.ok && !options.nextUrl) {
+        const top = options.pageSize || 50;
+        const fallbackUrl = `${siteUrl}/_api/web/lists/getbytitle('MealOptOutRequest')/items?$orderby=MealDate desc&$top=${top}`;
+        response = await spHttpClient.get(
+          fallbackUrl,
+          SPHttpClient.configurations.v1,
+          {
+            headers: {
+              Accept: "application/json;odata=verbose",
+              "odata-version": "",
+            },
+          }
+        );
+      }
 
       if (!response.ok) {
         return { items: [], nextUrl: null };
@@ -351,10 +555,14 @@ export class MealRequestService {
         Title: item.Title,
         MealType: item.MealType,
         MealDate: item.MealDate,
-        LocationId: item.Location?.Id ?? 0,
-        Location: item.Location ? { Id: item.Location.Id, Title: item.Location.Title } : undefined,
-        RequesterId: item.Requester?.Id ?? 0,
-        Requester: item.Requester ? { Id: item.Requester.Id, Title: item.Requester.Title, EMail: item.Requester.EMail } : undefined,
+        LocationId: item.Location?.Id ?? (typeof item.Location === "number" ? item.Location : 0),
+        Location: item.Location
+          ? (typeof item.Location === "object" ? { Id: item.Location.Id, Title: item.Location.Title } : { Id: 0, Title: String(item.Location) })
+          : undefined,
+        RequesterId: item.Requester?.Id ?? (typeof item.Requester === "number" ? item.Requester : 0),
+        Requester: item.Requester
+          ? (typeof item.Requester === "object" ? { Id: item.Requester.Id, Title: item.Requester.Title, EMail: item.Requester.EMail } : { Id: 0, Title: String(item.Requester) })
+          : undefined,
         Created: item.Created,
       }));
 

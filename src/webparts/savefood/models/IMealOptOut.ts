@@ -40,7 +40,9 @@ export interface IMealOptOutRequestItem {
 export interface ICreateMealOptOutPayload {
   Title: string;
   LocationId: number;
+  LocationTitle?: string;
   MealType: MealType;
   MealDate: string;
   RequesterId: number;
+  RequesterEmail?: string;
 }

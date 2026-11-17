@@ -190,17 +190,6 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       illustration: MyRequestsIllustration,
     },
     {
-      id: "all-optouts",
-      title: "All Meal Opt-Out Requests",
-      description:
-        "Consolidated kitchen roster, caterer headcounts, and location-wise records.",
-      actionLabel: "View Roster",
-      isPrimary: false,
-      adminOnly: true,
-      view: "all-requests",
-      illustration: AllRequestsIllustration,
-    },
-    {
       id: "reports",
       title: "Reports & Dashboard",
       description:
@@ -378,11 +367,11 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             </div>
           </section>
 
-          {/* 3-Column Card Grid: Padded Container Underneath Banner */}
+          {/* Card Grid: Padded Container Underneath Banner (2 Columns for both Admin & Employee) */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: "repeat(2, 1fr)",
               gap: "20px",
               padding: "20px 32px 16px 32px",
               width: "100%",
@@ -539,10 +528,11 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
           style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", padding: "16px 32px" }}
           className="w-full box-border"
         >
-          <AllMealOptOuts
+          <ReportsDashboard
             context={props.newcontext}
             spHttpClient={props.newspHttpClient}
             siteUrl={props.newsiteUrl}
+            initialTab="requests"
             onBack={() => handleNavigate("home")}
           />
         </main>
@@ -557,6 +547,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             context={props.newcontext}
             spHttpClient={props.newspHttpClient}
             siteUrl={props.newsiteUrl}
+            initialTab="dashboard"
             onBack={() => handleNavigate("home")}
           />
         </main>
