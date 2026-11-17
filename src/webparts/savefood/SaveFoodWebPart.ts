@@ -122,10 +122,9 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
     this.domElement.style.setProperty("opacity", "1", "important");
     this.domElement.style.setProperty("visibility", "visible", "important");
     this.domElement.style.setProperty("width", "100%", "important");
-    this.domElement.style.setProperty("max-width", "none", "important");
+    this.domElement.style.setProperty("max-width", "100%", "important");
     this.domElement.style.setProperty("min-width", "100%", "important");
     this.domElement.style.setProperty("min-height", "100vh", "important");
-    this.domElement.style.setProperty("height", "100vh", "important");
     this.domElement.style.setProperty("box-sizing", "border-box", "important");
     this.domElement.style.setProperty("margin", "0px", "important");
     this.domElement.style.setProperty("padding", "0px", "important");
@@ -331,6 +330,7 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
       #spPageCanvasContent,
       #spPageCanvasContent > div,
       .SPCanvas,
+      .SPCanvas-canvas,
       .CanvasZone,
       .CanvasZoneSectionContainer,
       .CanvasSection,

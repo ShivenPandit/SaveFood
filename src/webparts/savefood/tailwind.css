@@ -1,3 +1,47 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* SharePoint Canvas & Workbench Full-Bleed Overrides */
+:global(.CanvasZone),
+:global(.CanvasSection),
+:global(.ControlZone),
+:global(#workbenchPageContent),
+:global(.SPCanvas),
+:global(.SPCanvas-canvas),
+:global(#spPageCanvasContent),
+:global(div[data-automation-id="CanvasControl"]),
+:global(div[data-automation-id="CanvasZone"]),
+:global(div[data-automation-id="CanvasSection"]),
+.CanvasZone,
+.CanvasSection,
+.ControlZone,
+#workbenchPageContent,
+.SPCanvas,
+.SPCanvas-canvas,
+#spPageCanvasContent,
+div[data-automation-id="CanvasControl"],
+div[data-automation-id="CanvasZone"],
+div[data-automation-id="CanvasSection"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+:global(.CanvasSection-xl12),
+:global(.CanvasSection-l12),
+:global(.CanvasSection-m12),
+:global(.CanvasSection-sm12),
+:global(.CanvasSection-col),
+.CanvasSection-xl12,
+.CanvasSection-l12,
+.CanvasSection-m12,
+.CanvasSection-sm12,
+.CanvasSection-col {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
