@@ -9,6 +9,7 @@ import {
   getCutOffDateTimeIST,
   CUT_OFF_RULES,
   getCurrentISTDate,
+  formatISTDateToISO,
 } from "../../services/cutOffService";
 import { BackButton } from "../Common/BackButton";
 
@@ -37,15 +38,14 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
   const [selectedLocationId, setSelectedLocationId] = React.useState<number | "">("");
   const [selectedMealType, setSelectedMealType] = React.useState<MealType | "">("");
 
-  // Date selection: Default to today in YYYY-MM-DD
+  // Date selection: Do not pre-select today's date; initialize as empty ("")
   const todayIST = getCurrentISTDate();
-  const todayISOString = todayIST.toISOString().split("T")[0];
-  const [selectedDate, setSelectedDate] = React.useState<string>(todayISOString);
+  const todayISOString = formatISTDateToISO(todayIST);
+  const [selectedDate, setSelectedDate] = React.useState<string>("");
 
   // Status & Validation State
   const [isLoadingLocations, setIsLoadingLocations] = React.useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
-  const [validationError, setValidationError] = React.useState<string | null>(null);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
   // Field Touched / Submit Attempt tracking for inline validation
@@ -75,26 +75,39 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
     };
   }, [spHttpClient, siteUrl]);
 
-  // 2. Validate cut-off whenever date or meal type changes
-  React.useEffect(() => {
+  // 2. Evaluate cut-off window individually for each meal button (Breakfast, Lunch, Dinner) based on selectedDate
+  const mealTypeOptions: MealType[] = ["Breakfast", "Lunch", "Dinner"];
+
+  const mealValidation = React.useMemo(() => {
+    const result: Record<MealType, { isExpired: boolean; message?: string }> = {
+      Breakfast: { isExpired: false },
+      Lunch: { isExpired: false },
+      Dinner: { isExpired: false },
+    };
+
     if (!selectedDate) {
-      setValidationError("Please select a valid meal date.");
-      return;
+      return result;
     }
 
-    if (!selectedMealType) {
-      setValidationError(null);
-      return;
+    for (const type of mealTypeOptions) {
+      const check = validateMealCutOff(selectedDate, type);
+      if (!check.isValid) {
+        result[type] = {
+          isExpired: true,
+          message: check.errorMessage,
+        };
+      }
     }
 
-    const result = validateMealCutOff(selectedDate, selectedMealType);
+    return result;
+  }, [selectedDate]);
 
-    if (!result.isValid) {
-      setValidationError(result.errorMessage || "Submission closed for this meal.");
-    } else {
-      setValidationError(null);
+  // Clear selectedMealType whenever the user picks a date whose cut-off has already passed for that meal
+  React.useEffect(() => {
+    if (selectedDate && selectedMealType && mealValidation[selectedMealType]?.isExpired) {
+      setSelectedMealType("");
     }
-  }, [selectedDate, selectedMealType]);
+  }, [selectedDate, selectedMealType, mealValidation]);
 
   // Selected Location Object
   const selectedLocationObj = React.useMemo(() => {
@@ -126,8 +139,6 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
   const mealTypeError =
     (hasAttemptedSubmit || touched.mealType) && !selectedMealType
       ? "Please select a meal type (Breakfast, Lunch, or Dinner)."
-      : validationError
-      ? validationError
       : null;
 
   // Handle Form Submission
@@ -136,7 +147,9 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
     setHasAttemptedSubmit(true);
     setServerError(null);
 
-    if (!selectedLocationId || !selectedDate || !selectedMealType || !!validationError) {
+    const isSelectedMealExpired = selectedMealType ? mealValidation[selectedMealType]?.isExpired : false;
+
+    if (!selectedLocationId || !selectedDate || !selectedMealType || isSelectedMealExpired) {
       return;
     }
 
@@ -166,16 +179,18 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
     }
   };
 
+  const isCurrentSelectionExpired = !!selectedMealType && mealValidation[selectedMealType]?.isExpired;
+
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
       {/* Top Header */}
-      <div className="mb-3.5 flex items-center justify-between w-full">
+      <div className="mb-2.5 flex items-center justify-between w-full">
         <div>
-          <BackButton onClick={onCancel} />
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          <BackButton onClick={onCancel} className="mb-1.5" />
+          <h2 className="text-[26px] sm:text-[28px] font-bold text-[#0f172a] tracking-tight">
             Create Meal Opt-Out Request
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-[15px] text-[#475569] leading-relaxed mt-1">
             Submit advance meal cancellations for upcoming plant shifts, official travel, or leave.
           </p>
         </div>
@@ -184,12 +199,12 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
       {/* Main Clean Form Card */}
       <div
         style={{ height: "auto", flex: "0 0 auto" }}
-        className="w-full bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-6"
+        className="w-full bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-6 sm:p-7"
       >
         {/* Server Error Alert */}
         {serverError && (
-          <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-rose-800 text-xs sm:text-sm font-medium">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-rose-800 text-[14px] font-medium">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-rose-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -198,15 +213,15 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* 1. Location Selection */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 1. Location Selection (Top-Left) */}
             <div>
-              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
+              <label className="block text-[14.5px] font-semibold text-[#1e293b] mb-2">
                 Canteen / Mess Location <span className="text-rose-500">*</span>
               </label>
               {isLoadingLocations ? (
-                <div className="h-11 w-full rounded-xl bg-slate-100 animate-pulse" />
+                <div className="min-h-[46px] h-[46px] w-full rounded-xl bg-slate-100 animate-pulse" />
               ) : (
                 <select
                   value={selectedLocationId}
@@ -217,7 +232,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                   }}
                   onBlur={() => setTouched((prev) => ({ ...prev, location: true }))}
                   disabled={isSubmitting}
-                  className={`w-full h-11 px-4 rounded-xl border bg-white text-slate-800 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 transition ${
+                  className={`w-full min-h-[46px] h-[46px] px-4 rounded-xl border bg-white text-slate-800 text-[15px] font-medium focus:outline-none focus:ring-2 transition ${
                     locationError
                       ? "border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
                       : "border-slate-300 focus:ring-[#004B87] focus:border-transparent"
@@ -232,8 +247,8 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                 </select>
               )}
               {locationError ? (
-                <p className="text-[11.5px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0 fill-none stroke-current" strokeWidth="2.5">
+                <p className="text-[13px] text-rose-600 font-semibold mt-1.5 flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-current" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -241,52 +256,15 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                   <span>{locationError}</span>
                 </p>
               ) : (
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[13px] text-[#64748b] mt-1.5">
                   Select plant mess facility where meal is scheduled.
                 </p>
               )}
             </div>
 
-            {/* 2. Meal Date Picker */}
+            {/* 2. Meal Type Selection (Top-Right) */}
             <div>
-              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
-                Meal Date <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                min={todayISOString}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setTouched((prev) => ({ ...prev, date: true }));
-                }}
-                onBlur={() => setTouched((prev) => ({ ...prev, date: true }))}
-                disabled={isSubmitting}
-                className={`w-full h-11 px-4 rounded-xl border bg-white text-slate-800 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 transition ${
-                  dateError
-                    ? "border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                    : "border-slate-300 focus:ring-[#004B87] focus:border-transparent"
-                }`}
-              />
-              {dateError ? (
-                <p className="text-[11.5px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0 fill-none stroke-current" strokeWidth="2.5">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span>{dateError}</span>
-                </p>
-              ) : (
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Advance date for cancellation. Past dates are blocked.
-                </p>
-              )}
-            </div>
-
-            {/* 3. Meal Type Selection (Radio Pills with No Default & Inline Validation) */}
-            <div>
-              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
+              <label className="block text-[14.5px] font-semibold text-[#1e293b] mb-2">
                 Meal Type <span className="text-rose-500">*</span>
               </label>
               <div
@@ -294,32 +272,74 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                   mealTypeError && !selectedMealType ? "border-2 border-rose-400 bg-rose-50/30" : ""
                 }`}
               >
-                {(["Breakfast", "Lunch", "Dinner"] as MealType[]).map((type) => {
+                {mealTypeOptions.map((type) => {
                   const isSelected = selectedMealType === type;
+                  const status = mealValidation[type];
+                  const isExpired = status?.isExpired;
+
                   return (
-                    <button
+                    <div
                       key={type}
-                      type="button"
-                      onClick={() => {
-                        setSelectedMealType(type);
-                        setTouched((prev) => ({ ...prev, mealType: true }));
-                      }}
-                      disabled={isSubmitting}
-                      className={`h-11 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-bold border-2 transition-all cursor-pointer ${
-                        isSelected
-                          ? "border-[#004B87] bg-blue-50/70 text-[#004B87] shadow-xs"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                      }`}
+                      className="relative group w-full"
+                      title={isExpired ? status.message : undefined}
                     >
-                      <span className="text-base">{type === "Breakfast" ? "🍳" : type === "Lunch" ? "🥗" : "🍲"}</span>
-                      <span>{type}</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isExpired) {
+                            setSelectedMealType(type);
+                            setTouched((prev) => ({ ...prev, mealType: true }));
+                          }
+                        }}
+                        disabled={isSubmitting || isExpired}
+                        style={
+                          isExpired
+                            ? {
+                                opacity: 0.5,
+                                backgroundColor: "#f1f5f9",
+                                color: "#94a3b8",
+                                borderColor: "#e2e8f0",
+                                cursor: "not-allowed",
+                              }
+                            : undefined
+                        }
+                        className={`w-full min-h-[46px] h-[46px] rounded-xl flex items-center justify-center gap-2 text-[15px] font-semibold border-2 transition-all ${
+                          isExpired
+                            ? "cursor-not-allowed pointer-events-none"
+                            : isSelected
+                            ? "border-[#004B87] bg-blue-50/70 text-[#004B87] shadow-xs cursor-pointer"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
+                        }`}
+                      >
+                        <span className="text-lg">{type === "Breakfast" ? "🍳" : type === "Lunch" ? "🥗" : "🍲"}</span>
+                        <span>{type}</span>
+                      </button>
+
+                      {/* Floating hover tooltip for expired meal button */}
+                      {isExpired && status.message && (
+                        <div
+                          role="tooltip"
+                          className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900/95 text-white text-[12px] leading-snug font-medium rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-30 text-center"
+                        >
+                          <div className="flex items-center gap-1.5 justify-center mb-1 text-amber-300 font-semibold text-[11.5px]">
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-current" strokeWidth="2.5">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>Cut-Off Passed</span>
+                          </div>
+                          <span>{status.message}</span>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900/95" />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
               {mealTypeError ? (
-                <p className="text-[11.5px] text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0 fill-none stroke-current" strokeWidth="2.5">
+                <p className="text-[13px] text-rose-600 font-semibold mt-1.5 flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-current" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -327,53 +347,91 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                   <span>{mealTypeError}</span>
                 </p>
               ) : cutOffDisplay ? (
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[13px] text-slate-500 mt-1.5">
                   Deadline: <span className="font-bold text-slate-700">{cutOffDisplay.date} at {cutOffDisplay.deadline} IST</span>
                 </p>
               ) : (
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[13px] text-[#64748b] mt-1.5">
                   Select Breakfast, Lunch, or Dinner.
                 </p>
               )}
             </div>
 
-            {/* 4. Requester (Read-Only) */}
+            {/* 3. Meal Date Picker (Bottom-Left) */}
             <div>
-              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
+              <label className="block text-[14.5px] font-semibold text-[#1e293b] mb-2">
+                Meal Date <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={selectedDate}
+                min={todayISOString}
+                placeholder="dd-mm-yyyy"
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  setTouched((prev) => ({ ...prev, date: true }));
+                }}
+                onBlur={() => setTouched((prev) => ({ ...prev, date: true }))}
+                disabled={isSubmitting}
+                className={`w-full min-h-[46px] h-[46px] px-4 rounded-xl border bg-white text-slate-800 text-[15px] font-medium focus:outline-none focus:ring-2 transition ${
+                  dateError
+                    ? "border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                    : "border-slate-300 focus:ring-[#004B87] focus:border-transparent"
+                }`}
+              />
+              {dateError ? (
+                <p className="text-[13px] text-rose-600 font-semibold mt-1.5 flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-current" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{dateError}</span>
+                </p>
+              ) : (
+                <p className="text-[13px] text-[#64748b] mt-1.5">
+                  Advance date for cancellation. Past dates are blocked.
+                </p>
+              )}
+            </div>
+
+            {/* 4. Requester (Bottom-Right, Read-Only) */}
+            <div>
+              <label className="block text-[14.5px] font-semibold text-[#1e293b] mb-2">
                 Requester
               </label>
-              <div className="h-11 px-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between text-slate-700 text-xs sm:text-sm">
+              <div className="min-h-[46px] h-[46px] px-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between text-slate-700 text-[14.5px]">
                 <span className="font-bold text-slate-900 truncate mr-2">{currentUserName}</span>
-                <span className="text-slate-500 font-mono text-[11px] truncate">{currentUserEmail}</span>
+                <span className="text-slate-500 font-mono text-[13px] truncate">{currentUserEmail}</span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text-[13px] text-[#64748b] mt-1.5">
                 Automatically registered under signed-in user.
               </p>
             </div>
           </div>
 
           {/* Form Actions */}
-          <div className="pt-4 mt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+          <div className="pt-5 mt-5 border-t border-slate-200 flex items-center justify-end gap-3.5">
             <button
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs sm:text-sm font-bold transition cursor-pointer"
+              className="h-[46px] px-6 py-2.5 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-100 text-[15px] font-semibold transition cursor-pointer whitespace-nowrap inline-flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || (!!validationError && !!selectedMealType)}
-              className={`px-7 py-2.5 rounded-full text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer ${
-                isSubmitting || (!!validationError && !!selectedMealType)
+              disabled={isSubmitting || isCurrentSelectionExpired}
+              className={`h-[46px] px-7 py-2.5 rounded-full text-white text-[15px] font-semibold shadow-sm transition-all inline-flex items-center justify-center gap-2.5 cursor-pointer whitespace-nowrap ${
+                isSubmitting || isCurrentSelectionExpired
                   ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                   : "bg-[#0066CC] hover:bg-[#0052A3] hover:shadow-md"
               }`}
             >
               {isSubmitting ? (
                 <>
-                  <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin w-4 h-4 shrink-0 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
@@ -382,7 +440,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
               ) : (
                 <>
                   <span>Submit Meal Opt-Out</span>
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12" />
                     <polyline points="12 5 19 12 12 19" />
                   </svg>

@@ -113,7 +113,7 @@ export const Toast: React.FC<IToastProps> = ({
       </div>
 
       {/* Message Text */}
-      <span className="text-xs sm:text-[13px] font-semibold text-slate-100 tracking-tight truncate">
+      <span className="text-[14px] sm:text-[14.5px] font-semibold text-slate-100 tracking-tight truncate">
         {message}
       </span>
 

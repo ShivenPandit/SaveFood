@@ -4,8 +4,9 @@ import { SPHttpClient } from "@microsoft/sp-http";
 import { IMealOptOutRequestItem } from "../../models/IMealOptOut";
 import { ILocationMasterItem } from "../../models/ILocation";
 import { MealRequestService } from "../../services/mealRequestService";
-import { getCurrentISTDate } from "../../services/cutOffService";
+import { formatISTDateToISO } from "../../services/cutOffService";
 import { BackButton } from "../Common/BackButton";
+import TagPeoplePicker, { IUser } from "../Common/TagPeoplePicker";
 import { useDynamicPagination } from "../../hooks/useDynamicPagination";
 import { DataTablePagination } from "../Common/DataTablePagination";
 
@@ -18,6 +19,7 @@ export interface IAllMealOptOutsProps {
 }
 
 export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
+  context,
   spHttpClient,
   siteUrl,
   onBack,
@@ -31,13 +33,45 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   const [locations, setLocations] = React.useState<ILocationMasterItem[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(cachedInitial.length === 0);
 
-  // Filters: Default to All Dates (null) so all meal records appear immediately
-  const todayIST = getCurrentISTDate();
-  const todayISOString = todayIST.toISOString().split("T")[0];
+  // Date Presets & Custom Range Filter (Defaults to Today in IST)
+  const todayISOString = React.useMemo(() => formatISTDateToISO(new Date()), []);
+  const tomorrowISOString = React.useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return formatISTDateToISO(d);
+  }, []);
 
-  const [filterDate, setFilterDate] = React.useState<string | null>(null);
+  // Default to Today on initial load as requested
+  const [startDate, setStartDate] = React.useState<string | null>(todayISOString);
+  const [endDate, setEndDate] = React.useState<string | null>(todayISOString);
   const [filterLocationId, setFilterLocationId] = React.useState<number | "all">("all");
-  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [selectedRequesters, setSelectedRequesters] = React.useState<IUser[]>([]);
+
+  // Preset Active Flags
+  const isTodayActive = startDate === todayISOString && endDate === todayISOString;
+  const isTomorrowActive = startDate === tomorrowISOString && endDate === tomorrowISOString;
+  const isAllDatesActive = startDate === null && endDate === null;
+  const isCustomRange =
+    !isTodayActive &&
+    !isTomorrowActive &&
+    !isAllDatesActive &&
+    (Boolean(startDate) || Boolean(endDate));
+
+  // Date Range Change Handlers (guarantees To >= From)
+  const handleStartDateChange = (val: string | null): void => {
+    setStartDate(val);
+    if (val && endDate && val > endDate) {
+      setEndDate(val);
+    }
+  };
+
+  const handleEndDateChange = (val: string | null): void => {
+    if (val && startDate && val < startDate) {
+      setEndDate(startDate);
+    } else {
+      setEndDate(val);
+    }
+  };
 
   // Pagination
   const [nextUrl, setNextUrl] = React.useState<string | null>(null);
@@ -96,16 +130,16 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
     setIsLoadingMore(false);
   };
 
-  // Instant in-memory filtering: Date, Location, and Search query
+  // Instant in-memory filtering: Date Range, Location, and Multi-Person Requesters
   const filteredRequests = React.useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const effStart = startDate && endDate && startDate > endDate ? endDate : startDate;
+    const effEnd = startDate && endDate && startDate > endDate ? startDate : endDate;
 
     return requests.filter((r) => {
-      // 1. Date filter (exact YYYY-MM-DD string match, immune to UTC timezone shift)
-      if (filterDate) {
-        const itemDateStr = r.MealDate ? r.MealDate.split("T")[0] : "";
-        if (itemDateStr !== filterDate) return false;
-      }
+      // 1. Date Range filter (exact YYYY-MM-DD string match, immune to UTC timezone shift)
+      const itemDateStr = r.MealDate ? r.MealDate.split("T")[0] : "";
+      if (effStart && itemDateStr < effStart) return false;
+      if (effEnd && itemDateStr > effEnd) return false;
 
       // 2. Location filter
       if (filterLocationId !== "all") {
@@ -113,25 +147,46 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
         if (itemLocId !== filterLocationId) return false;
       }
 
-      // 3. Search text
-      if (query) {
-        const requesterName = (r.Requester?.Title || "").toLowerCase();
-        const requesterEmail = (r.Requester?.EMail || "").toLowerCase();
-        const summary = (r.Title || "").toLowerCase();
-        const loc = (r.Location?.Title || "").toLowerCase();
-        if (
-          requesterName.indexOf(query) === -1 &&
-          requesterEmail.indexOf(query) === -1 &&
-          summary.indexOf(query) === -1 &&
-          loc.indexOf(query) === -1
-        ) {
+      // 3. Multi-Person Requester filter
+      if (selectedRequesters.length > 0) {
+        const reqEmail = (r.Requester?.EMail || "").toLowerCase().trim();
+        const reqName = (r.Requester?.Title || "").toLowerCase().trim();
+
+        const matches = selectedRequesters.some((u) => {
+          const userEmail = (u.email || "").toLowerCase().trim();
+          const userName = (u.title || "").toLowerCase().trim();
+
+          // Match by email
+          if (
+            userEmail &&
+            reqEmail &&
+            (reqEmail === userEmail ||
+              reqEmail.indexOf(userEmail) !== -1 ||
+              userEmail.indexOf(reqEmail) !== -1)
+          ) {
+            return true;
+          }
+          // Match by name
+          if (
+            userName &&
+            reqName &&
+            (reqName === userName ||
+              reqName.indexOf(userName) !== -1 ||
+              userName.indexOf(reqName) !== -1)
+          ) {
+            return true;
+          }
+          return false;
+        });
+
+        if (!matches) {
           return false;
         }
       }
 
       return true;
     });
-  }, [requests, filterDate, filterLocationId, searchQuery]);
+  }, [requests, startDate, endDate, filterLocationId, selectedRequesters]);
 
   // Dynamic Viewport-Aware Pagination
   const {
@@ -151,79 +206,148 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   // Reset to first page when filters or search change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filterDate, filterLocationId, searchQuery, setCurrentPage]);
+  }, [startDate, endDate, filterLocationId, selectedRequesters, setCurrentPage]);
 
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
       {/* Top Header */}
-      <div className="mb-2 sm:mb-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <div className="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          {!hideBackButton && <BackButton onClick={onBack} />}
+          {!hideBackButton && <BackButton onClick={onBack} className="mb-1.5" />}
           <div className="flex items-center gap-2">
-            <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-[26px] sm:text-[28px] font-bold text-[#0f172a] tracking-tight">
               All Meal Opt-Out Requests
             </h2>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-[15px] text-[#475569] leading-relaxed mt-1">
             Consolidated kitchen catering headcount roster and location-wise opt-out records.
           </p>
         </div>
 
         {/* Count Pill */}
-        <div className="flex items-center gap-1.5 self-start md:self-auto bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-700">
+        <div className="flex items-center gap-2 self-start md:self-auto bg-slate-100 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-slate-700">
           <span>Total Records Shown:</span>
-          <span className="text-[#004B87] text-sm">{filteredRequests.length}</span>
+          <span className="text-[#004B87] font-bold text-[14.5px]">{filteredRequests.length}</span>
         </div>
       </div>
 
       {/* Filter Bar Card */}
       <div
         style={{ height: "auto", flex: "0 0 auto" }}
-        className="bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-2.5 sm:px-4 sm:py-2.5 mb-2 sm:mb-2.5"
+        className="bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-4 sm:p-5 mb-2.5"
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end">
-          {/* 1. Date Filter */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-              Filter by Meal Date
-            </label>
-            <div className="flex items-center gap-1.5">
-              <input
-                type="date"
-                value={filterDate || ""}
-                onChange={(e) => setFilterDate(e.target.value || null)}
-                className="w-full h-8 px-2.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
-              />
-              <button
-                type="button"
-                onClick={() => setFilterDate(todayISOString)}
-                title="Filter for Today"
-                className={`px-2.5 h-8 rounded-lg text-xs font-bold border transition cursor-pointer shrink-0 ${
-                  filterDate === todayISOString
-                    ? "bg-[#004B87] text-white border-[#004B87]"
-                    : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterDate(null)}
-                title="View All Dates"
-                className={`px-2.5 h-8 rounded-lg text-xs font-bold border transition cursor-pointer shrink-0 ${
-                  filterDate === null
-                    ? "bg-[#004B87] text-white border-[#004B87]"
-                    : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                All Dates
-              </button>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+          {/* 1. Date Range Filter & Quick Presets (5 cols on xl, 12 cols on md) */}
+          <div className="md:col-span-12 xl:col-span-5 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-[14.5px] font-semibold text-[#1e293b]">
+                Filter by Meal Date Range
+              </label>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate(todayISOString);
+                    setEndDate(todayISOString);
+                  }}
+                  title="Filter for Today"
+                  className={`px-3 py-1 rounded-lg text-[13px] font-semibold border transition cursor-pointer ${
+                    isTodayActive
+                      ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
+                      : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate(tomorrowISOString);
+                    setEndDate(tomorrowISOString);
+                  }}
+                  title="Filter for Tomorrow"
+                  className={`px-3 py-1 rounded-lg text-[13px] font-semibold border transition cursor-pointer ${
+                    isTomorrowActive
+                      ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
+                      : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate(null);
+                    setEndDate(null);
+                  }}
+                  title="View All Dates"
+                  className={`px-3 py-1 rounded-lg text-[13px] font-semibold border transition cursor-pointer ${
+                    isAllDatesActive
+                      ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
+                      : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  All Dates
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* From Date */}
+              <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[44px]">
+                <span className="px-3 text-[13px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2.5 select-none shrink-0">
+                  From
+                </span>
+                <input
+                  type="date"
+                  value={startDate || ""}
+                  max={endDate || undefined}
+                  onChange={(e) => handleStartDateChange(e.target.value || null)}
+                  aria-label="From Date"
+                  className="w-full h-[44px] px-3 text-[14.5px] font-medium text-slate-800 bg-white focus:outline-none"
+                />
+              </div>
+
+              <span className="text-slate-400 font-bold text-sm shrink-0 select-none">to</span>
+
+              {/* To Date */}
+              <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[44px]">
+                <span className="px-3 text-[13px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2.5 select-none shrink-0">
+                  To
+                </span>
+                <input
+                  type="date"
+                  value={endDate || ""}
+                  min={startDate || undefined}
+                  onChange={(e) => handleEndDateChange(e.target.value || null)}
+                  aria-label="To Date"
+                  className="w-full h-[44px] px-3 text-[14.5px] font-medium text-slate-800 bg-white focus:outline-none"
+                />
+              </div>
+
+              {/* Clear Range Button */}
+              {isCustomRange && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate(null);
+                    setEndDate(null);
+                  }}
+                  title="Clear Date Filter"
+                  className="h-[44px] px-3 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center shrink-0 cursor-pointer"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
           {/* 2. Location Filter */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+          <div className="md:col-span-5 xl:col-span-3">
+            <label className="block text-[14.5px] font-semibold text-[#1e293b] mb-1.5">
               Filter by Location
             </label>
             <select
@@ -231,7 +355,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
               onChange={(e) =>
                 setFilterLocationId(e.target.value === "all" ? "all" : Number(e.target.value))
               }
-              className="w-full h-8 px-2.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87] bg-white"
+              className="w-full min-h-[44px] h-[44px] px-3.5 rounded-xl border border-slate-300 text-[14.5px] font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87] bg-white"
             >
               <option value="all">All Mess Locations</option>
               {locations.map((loc) => (
@@ -242,32 +366,29 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
             </select>
           </div>
 
-          {/* 3. Search Field */}
-          <div className="lg:col-span-2">
-            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-              Search by Requester / Email
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search employee name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-8 pl-8 pr-3 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87]"
-              />
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+          {/* 3. Multi-Person Requester Filter */}
+          <div className="md:col-span-7 xl:col-span-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[14.5px] font-semibold text-[#1e293b]">
+                Filter by Requester Name
+              </label>
+              {selectedRequesters.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedRequesters([])}
+                  className="text-[12px] font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer"
+                >
+                  Clear ({selectedRequesters.length})
+                </button>
+              )}
             </div>
+            <TagPeoplePicker
+              context={context}
+              spHttpClient={spHttpClient}
+              siteUrl={siteUrl}
+              selectedUsers={selectedRequesters}
+              onUsersSelected={setSelectedRequesters}
+            />
           </div>
         </div>
       </div>
@@ -297,22 +418,36 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
             </div>
             <h3 className="text-base font-bold text-slate-800">No Opt-Outs for this Filter</h3>
             <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto mt-1">
-              No employee meal cancellations recorded for the selected date and location.
+              No employee meal cancellations recorded for the selected criteria.
             </p>
+            {(startDate || endDate || filterLocationId !== "all" || selectedRequesters.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate(null);
+                  setEndDate(null);
+                  setFilterLocationId("all");
+                  setSelectedRequesters([]);
+                }}
+                className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#004B87] hover:bg-[#003865] text-white text-xs font-bold transition shadow-2xs cursor-pointer"
+              >
+                <span>Reset All Filters</span>
+              </button>
+            )}
           </div>
         ) : (
           <>
             {/* Desktop Table View (>= 640px) */}
             <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10.5px] sm:text-xs">
+              <table className="w-full text-left text-[14.5px]">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[#475569] font-bold uppercase tracking-wider text-[12.5px] sm:text-[13px]">
                   <tr>
-                    <th className="py-2 px-3 sm:px-5">Meal Date</th>
-                    <th className="py-2 px-3">Meal Type</th>
-                    <th className="py-2 px-3">Location</th>
-                    <th className="py-2 px-3">Employee / Requester</th>
-                    <th className="py-2 px-3">Email</th>
-                    <th className="py-2 px-3 sm:px-5 text-right">Submitted Timestamp</th>
+                    <th className="py-3.5 px-4 sm:px-5">Meal Date</th>
+                    <th className="py-3.5 px-4">Meal Type</th>
+                    <th className="py-3.5 px-4">Location</th>
+                    <th className="py-3.5 px-4">Employee / Requester</th>
+                    <th className="py-3.5 px-4">Email</th>
+                    <th className="py-3.5 px-4 sm:px-5 text-right">Submitted Timestamp</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -337,32 +472,33 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
                     return (
                       <tr key={item.Id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2 px-3 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
+                        <td className="py-3.5 px-4 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
                           {formattedMealDate}
                         </td>
-                        <td className="py-2 px-3 whitespace-nowrap">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-[13px] font-semibold ${
                               item.MealType === "Breakfast"
-                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                ? "bg-amber-50 text-amber-800 border border-amber-200"
                                 : item.MealType === "Lunch"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                : "bg-purple-50 text-purple-700 border border-purple-200"
+                                ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                : "bg-purple-50 text-purple-800 border border-purple-200"
                             }`}
                           >
-                            {item.MealType}
+                            <span>{item.MealType === "Breakfast" ? "🍳" : item.MealType === "Lunch" ? "🥗" : "🍲"}</span>
+                            <span className="ml-1">{item.MealType}</span>
                           </span>
                         </td>
-                        <td className="py-2 px-3 font-semibold text-slate-800 whitespace-nowrap">
+                        <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
                           {item.Location?.Title || "—"}
                         </td>
-                        <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap">
+                        <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
                           {item.Requester?.Title || "Employee"}
                         </td>
-                        <td className="py-2 px-3 text-slate-500 font-mono text-xs whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-slate-500 font-mono text-[13px] whitespace-nowrap">
                           {item.Requester?.EMail || "—"}
                         </td>
-                        <td className="py-2 px-3 sm:px-5 text-right text-slate-500 whitespace-nowrap">
+                        <td className="py-3.5 px-4 sm:px-5 text-right text-slate-500 whitespace-nowrap text-[13.5px]">
                           {formattedCreated}
                         </td>
                       </tr>
@@ -397,26 +533,27 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
                   <div
                     key={item.Id}
                     data-role="list-item"
-                    className="p-4 hover:bg-slate-50/70 transition-colors flex flex-col gap-2"
+                    className="p-4 hover:bg-slate-50/70 transition-colors flex flex-col gap-2.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-slate-900 text-sm">
+                      <span className="font-bold text-slate-900 text-[15px]">
                         {formattedMealDate}
                       </span>
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-[13px] font-semibold ${
                           item.MealType === "Breakfast"
-                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            ? "bg-amber-50 text-amber-800 border border-amber-200"
                             : item.MealType === "Lunch"
-                            ? "bg-blue-50 text-blue-700 border border-blue-200"
-                            : "bg-purple-50 text-purple-700 border border-purple-200"
+                            ? "bg-blue-50 text-blue-800 border border-blue-200"
+                            : "bg-purple-50 text-purple-800 border border-purple-200"
                         }`}
                       >
-                        {item.MealType}
+                        <span>{item.MealType === "Breakfast" ? "🍳" : item.MealType === "Lunch" ? "🥗" : "🍲"}</span>
+                        <span className="ml-1">{item.MealType}</span>
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-[14px]">
                       <span className="font-bold text-slate-900">
                         {item.Requester?.Title || "Employee"}
                       </span>

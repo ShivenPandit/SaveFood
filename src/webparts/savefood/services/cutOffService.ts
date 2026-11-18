@@ -35,6 +35,25 @@ export const CUT_OFF_RULES: Record<MealType, { hour: number; minute: number; day
 };
 
 /**
+ * Formats a given Date into "YYYY-MM-DD" string in India Standard Time (Asia/Kolkata).
+ */
+export function formatISTDateToISO(date: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  } catch (e) {
+    const { year, month, day } = parseISTDateParts(date);
+    const m = month < 9 ? "0" + (month + 1) : String(month + 1);
+    const d = day < 10 ? "0" + day : String(day);
+    return `${year}-${m}-${d}`;
+  }
+}
+
+/**
  * Deterministically parses any date representation (ISO string, SharePoint UTC string, Date object)
  * into its calendar Year, Month (0-11), and Day in IST (Asia/Kolkata).
  */

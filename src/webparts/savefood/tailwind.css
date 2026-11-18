@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html, body, #workbenchPageContent, .savefood-canvas-breakout {
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Fluent UI Layer & Callout Fix */
+.ms-Layer,
+.ms-Layer--fixed,
+.ms-Layer-content,
+.ms-Layer .ms-Fabric,
+.ms-Callout-container,
+.ms-Callout {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+.ms-Callout-main {
+  background-color: #ffffff !important;
+}
+
 /* SharePoint Canvas & Workbench Full-Bleed Overrides */
 :global(.CanvasZone),
 :global(.CanvasSection),

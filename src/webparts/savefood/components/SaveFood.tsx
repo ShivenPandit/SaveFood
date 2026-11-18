@@ -114,37 +114,10 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
     };
   }, [isAdmin]);
 
-  // Lock scrollbar on desktop screens for home and table views to eliminate window scrollbars and fit viewport cleanly
+  // Ensure scroll classes are cleaned up so all screens (tablet, small laptop, desktop) scroll naturally
   React.useEffect(() => {
-    const updateScrollLock = (): void => {
-      const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
-      const isNoScrollView =
-        currentView === "home" ||
-        currentView === "my-requests" ||
-        currentView === "all-requests";
-
-      if (isNoScrollView && isDesktop) {
-        document.body.classList.add("savefood-dashboard-no-scroll");
-        document.documentElement.classList.add("savefood-dashboard-no-scroll");
-      } else {
-        document.body.classList.remove("savefood-dashboard-no-scroll");
-        document.documentElement.classList.remove("savefood-dashboard-no-scroll");
-      }
-    };
-
-    updateScrollLock();
-
-    const handleResize = (): void => {
-      updateScrollLock();
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      document.body.classList.remove("savefood-dashboard-no-scroll");
-      document.documentElement.classList.remove("savefood-dashboard-no-scroll");
-    };
+    document.body.classList.remove("savefood-dashboard-no-scroll");
+    document.documentElement.classList.remove("savefood-dashboard-no-scroll");
   }, [currentView]);
 
   const handleLogoError = (): void => {
@@ -248,13 +221,13 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       className="savefood-canvas-breakout w-full max-w-none flex flex-col min-h-screen text-slate-800 antialiased font-sans select-none box-border"
     >
       {/* 1. Top Navbar: Vedanta Logo, Title, Role Pill & User Profile */}
-      <header className="h-12 sm:h-13 bg-white border-b border-slate-200/90 shrink-0 shadow-2xs z-30 sticky top-0 w-full select-none px-4 sm:px-8 flex items-center justify-between">
+      <header className="h-14 bg-white border-b border-slate-200/90 shrink-0 shadow-2xs z-30 sticky top-0 w-full select-none px-4 sm:px-8 flex items-center justify-between">
         {/* Left Side: Brand Logo + System Identity */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
           <img
             src={logoSrc}
             alt="Vedanta Logo"
-            className="h-7 sm:h-7.5 lg:h-8 w-auto object-contain transition-transform cursor-pointer"
+            className="h-7.5 sm:h-8 w-auto object-contain transition-transform cursor-pointer"
             onClick={() => handleNavigate("home")}
             onError={handleLogoError}
           />
@@ -262,7 +235,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
           <div className="flex items-center gap-2 min-w-0">
             <span
               onClick={() => handleNavigate("home")}
-              className="text-xs sm:text-sm lg:text-base font-extrabold text-[#003865] tracking-tight truncate cursor-pointer hover:text-[#004B87] transition-colors"
+              className="text-[18px] sm:text-[19px] font-bold text-[#003865] tracking-tight truncate cursor-pointer hover:text-[#004B87] transition-colors"
             >
               Save Food Management System
             </span>
@@ -270,11 +243,11 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
         </div>
 
         {/* Right Side: Role Badge, Date & User Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
           {/* User Role Indicator Pill */}
           {!isResolvingRole && (
             <span
-              className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold tracking-wide uppercase ${
+              className={`px-3 py-1 rounded-full text-[11.5px] font-bold tracking-wide uppercase ${
                 isAdmin
                   ? "bg-[#004B87] text-white shadow-2xs"
                   : "bg-slate-100 text-slate-700 border border-slate-200"
@@ -284,19 +257,19 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             </span>
           )}
 
-          <span className="text-[11px] sm:text-xs text-slate-500 font-medium hidden md:block">
+          <span className="text-[13px] text-slate-500 font-medium hidden md:block">
             {formattedDate}
           </span>
 
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-full py-1 px-1.5 sm:px-2.5 shadow-2xs">
-            <div className="w-6.5 h-6.5 sm:w-7 sm:h-7 rounded-full bg-[#004B87] text-white flex items-center justify-center font-bold text-[10px] sm:text-[11px] shrink-0">
+          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200/80 rounded-full py-1 px-2 sm:px-3 shadow-2xs">
+            <div className="w-8 h-8 rounded-full bg-[#004B87] text-white flex items-center justify-center font-bold text-[12px] shrink-0">
               {initials}
             </div>
             <div className="text-left hidden sm:block pr-1">
-              <p className="text-[11.5px] font-bold text-slate-900 leading-tight truncate max-w-[160px]">
+              <p className="text-[14px] font-semibold text-slate-900 leading-tight truncate max-w-[170px]">
                 {props.newcurrentUserName || "User"}
               </p>
-              <p className="text-[9.5px] text-slate-500 font-medium leading-none mt-0.5">
+              <p className="text-[12px] text-slate-500 font-medium leading-none mt-0.5">
                 {isAdmin ? "Administrator" : "Employee"}
               </p>
             </div>
@@ -313,18 +286,19 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
           style={{
             display: "flex",
             flexDirection: "column",
-            justifyContent: "flex-start",
+            justifyContent: "space-between",
             width: "100%",
-            flex: "1 0 auto",
+            flex: "1 1 auto",
+            minHeight: "0px",
             boxSizing: "border-box",
           }}
-          className="w-full box-border"
+          className="w-full box-border flex-1 flex flex-col justify-between"
         >
           {/* Edge-to-Edge Full-Bleed Hero Banner */}
           <section
             style={{
               flex: "0 0 auto",
-              minHeight: "175px",
+              minHeight: "135px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -333,7 +307,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
               borderRadius: 0,
               boxSizing: "border-box",
             }}
-            className="relative w-full overflow-hidden bg-gradient-to-r from-[#002D56] via-[#004B87] to-[#046A38] text-white select-none shadow-md shrink-0 rounded-none px-5 sm:px-9 py-6 sm:py-7"
+            className="relative w-full overflow-hidden bg-gradient-to-r from-[#002D56] via-[#004B87] to-[#046A38] text-white select-none shadow-md shrink-0 rounded-none px-5 sm:px-8 py-3.5 sm:py-4"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#002D56] via-[#004B87]/90 via-55% to-transparent pointer-events-none z-10" />
 
@@ -354,36 +328,36 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
             <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full min-w-0">
               <div className="max-w-2xl xl:max-w-3xl min-w-0">
-                <div className="w-12 h-1.5 bg-[#F59E0B] rounded-full mb-2" />
-                <p className="text-white/90 text-sm sm:text-[14px] font-semibold tracking-wider uppercase">
+                <div className="w-12 h-1.5 bg-[#F59E0B] rounded-full mb-1.5" />
+                <p className="text-white/90 text-xs sm:text-[13px] font-semibold tracking-wider uppercase">
                   Vedanta Sustainability Platform
                 </p>
-                <h1 className="font-extrabold text-white tracking-tight leading-tight text-2xl sm:text-3xl lg:text-[32px] mt-1">
+                <h1 className="font-extrabold text-white tracking-tight leading-tight text-xl sm:text-2xl lg:text-[28px] mt-0.5">
                   VOGL Save Food{" "}
                   <span className="text-emerald-400 font-black whitespace-nowrap">
                     Management System
                   </span>
                 </h1>
-                <p className="text-amber-300 font-extrabold tracking-widest text-xs sm:text-sm mt-1 uppercase">
+                <p className="text-amber-300 font-extrabold tracking-widest text-[11px] sm:text-xs mt-0.5 uppercase">
                   Inform Early. Prepare Smart. Waste Less.
                 </p>
-                <p className="text-blue-100/90 leading-relaxed text-xs sm:text-sm mt-2 max-w-xl lg:max-w-2xl 2xl:max-w-3xl">
+                <p className="text-blue-100/90 leading-relaxed text-xs sm:text-[13px] mt-1.5 max-w-xl lg:max-w-2xl 2xl:max-w-3xl">
                   A centralized digital platform to manage advance meal opt-out requests, optimize catering planning, minimize food wastage, and promote sustainability across VOGL locations.
                 </p>
               </div>
 
               <div className="hidden lg:flex flex-col items-end text-right justify-center pr-2 shrink-0">
                 <div
-                  style={{ padding: "18px 24px" }}
-                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl max-w-[240px] text-center shadow-lg"
+                  style={{ padding: "14px 20px" }}
+                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl max-w-[230px] text-center shadow-lg"
                 >
-                  <span className="text-[11px] font-bold tracking-wider text-emerald-300 uppercase block">
+                  <span className="text-[10.5px] font-bold tracking-wider text-emerald-300 uppercase block">
                     Responsible Living
                   </span>
-                  <p className="text-xs sm:text-[13px] font-semibold text-white mt-1 leading-snug">
+                  <p className="text-xs sm:text-[12.5px] font-semibold text-white mt-1 leading-snug">
                     Every advance opt-out preserves food &amp; energy.
                   </p>
-                  <div className="w-8 h-0.5 bg-[#F59E0B] rounded-full mx-auto mt-2" />
+                  <div className="w-8 h-0.5 bg-[#F59E0B] rounded-full mx-auto mt-1.5" />
                 </div>
               </div>
             </div>
@@ -392,11 +366,12 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
           {/* Card Grid: Padded Container Underneath Banner (1 Col on mobile, 2 Col on sm+ for both Admin & Employee) */}
           <div
             style={{
-              gap: "20px",
+              gap: "16px",
               width: "100%",
               boxSizing: "border-box",
+              flex: "1 1 auto",
             }}
-            className="w-full grid grid-cols-1 sm:grid-cols-2 p-4 sm:px-8 sm:pt-5 sm:pb-4"
+            className="w-full grid grid-cols-1 sm:grid-cols-2 p-3.5 sm:px-8 sm:py-3.5 lg:py-5 flex-1 items-stretch"
           >
             {visibleCards.map((card) => {
               const Illustration = card.illustration;
@@ -407,15 +382,15 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
                   key={card.id}
                   onClick={() => handleNavigate(card.view)}
                   style={{
-                    minHeight: "190px",
-                    maxHeight: "225px",
-                    padding: "26px 30px",
+                    padding: "20px 24px",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
                     boxSizing: "border-box",
+                    minHeight: "155px",
+                    height: "100%",
                   }}
-                  className={`group relative rounded-2xl ${
+                  className={`group relative rounded-2xl h-full flex flex-col justify-between ${
                     isPrimary
                       ? "bg-gradient-to-br from-[#EBFBF0] via-[#E2F7E9] to-[#D1F2DD] border-2 border-[#86EFAC] hover:border-[#10B981] hover:shadow-emerald-900/15"
                       : "bg-white border-2 border-slate-200/90 hover:border-[#0066CC] hover:shadow-slate-300/40"
@@ -441,19 +416,19 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
                     </>
                   )}
 
-                  <div className="flex items-start justify-between gap-4 z-10 min-w-0">
-                    <div className="flex-1 min-w-0 pr-2">
+                  <div className="flex items-start justify-between gap-3 z-10 min-w-0">
+                    <div className="flex-1 min-w-0 pr-1.5">
                       <h3
-                        className={`font-black text-slate-900 tracking-tight leading-snug ${
+                        className={`font-bold text-slate-900 tracking-tight leading-snug ${
                           !isPrimary ? "group-hover:text-[#004B87]" : ""
-                        } transition-colors text-[17px] sm:text-[18px]`}
+                        } transition-colors text-[18px] sm:text-[19px]`}
                       >
                         {card.title}
                       </h3>
                       <p
                         className={`${
-                          isPrimary ? "text-slate-600" : "text-slate-500"
-                        } mt-2 text-[13px] sm:text-[13.5px] leading-relaxed line-clamp-2`}
+                          isPrimary ? "text-slate-600" : "text-slate-600"
+                        } mt-1.5 text-[13.5px] sm:text-[14px] leading-relaxed line-clamp-2`}
                       >
                         {card.description}
                       </p>
@@ -466,11 +441,11 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
                   <div className="mt-auto pt-3 z-10">
                     {isPrimary ? (
-                      <span className="inline-flex items-center gap-2 bg-[#0066CC] hover:bg-[#0052A3] text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-2xs group-hover:shadow-xs transition-all">
+                      <span className="inline-flex items-center gap-2 bg-[#0066CC] hover:bg-[#0052A3] text-white text-[13.5px] font-semibold px-4 py-2 rounded-full shadow-2xs group-hover:shadow-xs transition-all">
                         <span>{card.actionLabel}</span>
                         <svg
                           viewBox="0 0 24 24"
-                          className="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
+                          className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2.5"
@@ -482,11 +457,11 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
                         </svg>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-2 bg-white hover:bg-blue-50/80 border border-blue-200/90 text-[#0066CC] text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-2xs group-hover:border-blue-400 group-hover:shadow-xs transition-all">
+                      <span className="inline-flex items-center gap-2 bg-white hover:bg-blue-50/80 border border-blue-200/90 text-[#0066CC] text-[13.5px] font-semibold px-4 py-2 rounded-full shadow-2xs group-hover:border-blue-400 group-hover:shadow-xs transition-all">
                         <span>{card.actionLabel}</span>
                         <svg
                           viewBox="0 0 24 24"
-                          className="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
+                          className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2.5"
@@ -510,7 +485,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       {currentView === "create" && (
         <main
           style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
-          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
+          className="w-full box-border px-3.5 sm:px-8 py-2 sm:py-2.5"
         >
           <CreateMealOptOut
             context={props.newcontext}
@@ -566,7 +541,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       {currentView === "reports" && isAdmin && (
         <main
           style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
-          className="w-full box-border px-3.5 sm:px-8 py-2.5 sm:py-3"
+          className="w-full box-border px-3.5 sm:px-8 py-2 sm:py-2.5"
         >
           <ReportsDashboard
             context={props.newcontext}
@@ -581,7 +556,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       {currentView === "manual" && (
         <main
           style={{ flex: "1 0 auto", display: "flex", flexDirection: "column" }}
-          className="w-full box-border px-3.5 sm:px-8 py-3.5 sm:py-4"
+          className="w-full box-border px-3.5 sm:px-8 py-2 sm:py-2.5"
         >
           <UserManual
             onBack={() => handleNavigate("home")}
@@ -594,19 +569,19 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
       {currentView === "home" && (
         <footer
           style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0" }}
-          className="select-none shrink-0 mt-auto w-full px-4 sm:px-8 py-2.5 sm:py-2"
+          className="select-none shrink-0 mt-auto w-full px-4 sm:px-8 py-2.5"
         >
-          <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[11px] sm:text-xs text-slate-500 font-medium gap-1.5 sm:gap-0">
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[13px] text-slate-600 font-medium gap-2 sm:gap-0">
             <span>© Vedanta Resources Ltd. • Save Food Management System</span>
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center sm:justify-end text-[10.5px] sm:text-[11.5px]">
-              <span className="font-extrabold text-[#003865]">Cut-Off Timings (IST):</span>
-              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200/90 px-2 py-0.5 rounded-full font-bold">
+            <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end text-[13px]">
+              <span className="font-bold text-[#003865]">Cut-Off Timings (IST):</span>
+              <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200/90 px-3 py-1 rounded-full font-semibold">
                 <span>🍳</span> Breakfast: 08:00 PM (Prev Day)
               </span>
-              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200/90 px-2 py-0.5 rounded-full font-bold">
+              <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200/90 px-3 py-1 rounded-full font-semibold">
                 <span>🥗</span> Lunch: 10:00 AM
               </span>
-              <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-800 border border-purple-200/90 px-2 py-0.5 rounded-full font-bold">
+              <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-800 border border-purple-200/90 px-3 py-1 rounded-full font-semibold">
                 <span>🍲</span> Dinner: 06:00 PM
               </span>
             </div>

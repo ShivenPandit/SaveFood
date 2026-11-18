@@ -285,6 +285,9 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         overflow-x: hidden !important;
         max-width: 100% !important;
         background-color: #F8FAFC !important;
+        font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
         margin: 0 !important;
         padding: 0 !important;
         margin-top: 0 !important;
@@ -315,53 +318,30 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         border: none !important;
         -webkit-overflow-scrolling: touch !important;
       }
-      /* Full-screen desktop dashboard view (>= 768px): Zero scrollbars allowed */
-      @media (min-width: 768px) {
-        body.savefood-dashboard-no-scroll,
-        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
-        body.savefood-dashboard-no-scroll #workbenchPageContent,
-        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
-        body.savefood-dashboard-no-scroll .sp-appRoot,
-        body.savefood-dashboard-no-scroll .sp-pageLayout,
-        body.savefood-dashboard-no-scroll #spPageCanvasContent,
-        body.savefood-dashboard-no-scroll .savefood-canvas-breakout,
-        html.savefood-dashboard-no-scroll {
-          overflow: hidden !important;
-          overflow-y: hidden !important;
-          overflow-x: hidden !important;
-          height: 100vh !important;
-          min-height: 100vh !important;
-          max-height: 100vh !important;
-        }
-      }
-
-      /* Mobile view (< 768px): Allow smooth natural vertical touch scrolling */
-      @media (max-width: 767px) {
-        body,
-        html,
-        body.savefood-dashboard-no-scroll,
-        body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
-        body.savefood-dashboard-no-scroll #workbenchPageContent,
-        body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
-        body.savefood-dashboard-no-scroll .sp-appRoot,
-        body.savefood-dashboard-no-scroll .sp-pageLayout,
-        body.savefood-dashboard-no-scroll #spPageCanvasContent,
-        body.savefood-dashboard-no-scroll .savefood-canvas-breakout,
-        html.savefood-dashboard-no-scroll,
-        div[data-automation-id="contentScrollRegion"],
-        #workbenchPageContent,
-        #spPageChromeAppDiv,
-        .sp-appRoot,
-        .sp-pageLayout,
-        .sp-pageLayout-sideNav,
-        #spPageCanvasContent,
-        .savefood-canvas-breakout {
-          overflow-y: auto !important;
-          -webkit-overflow-scrolling: touch !important;
-          height: auto !important;
-          max-height: none !important;
-          min-height: 100vh !important;
-        }
+      /* Allow natural vertical scrolling on all screens (tablet, small laptop, desktop) when content exceeds viewport */
+      body,
+      html,
+      body.savefood-dashboard-no-scroll,
+      body.savefood-dashboard-no-scroll div[data-automation-id="contentScrollRegion"],
+      body.savefood-dashboard-no-scroll #workbenchPageContent,
+      body.savefood-dashboard-no-scroll #spPageChromeAppDiv,
+      body.savefood-dashboard-no-scroll .sp-appRoot,
+      body.savefood-dashboard-no-scroll .sp-pageLayout,
+      body.savefood-dashboard-no-scroll #spPageCanvasContent,
+      body.savefood-dashboard-no-scroll .savefood-canvas-breakout,
+      html.savefood-dashboard-no-scroll,
+      div[data-automation-id="contentScrollRegion"],
+      #workbenchPageContent,
+      #spPageChromeAppDiv,
+      .sp-appRoot,
+      .sp-pageLayout,
+      .sp-pageLayout-sideNav,
+      #spPageCanvasContent,
+      .savefood-canvas-breakout {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        min-height: 100vh !important;
       }
       #spPageCanvasContent,
       #spPageCanvasContent > div,
@@ -384,7 +364,6 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
       [class*="pageContent"],
       [class*="canvasContent"],
       [data-sp-feature-tag="SaveFoodWebPart"],
-      .ms-Fabric,
       .ms-Grid,
       .appPart,
       .webPartContainer,
@@ -414,6 +393,22 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
         border-radius: 0 !important;
         box-sizing: border-box !important;
         background-color: #F8FAFC !important;
+      }
+      /* Fluent UI Layer, Callout & Picker transparency fix */
+      .ms-Layer,
+      .ms-Layer--fixed,
+      .ms-Layer-content,
+      .ms-Layer .ms-Fabric,
+      .ms-Callout-container,
+      .ms-Callout {
+        background-color: transparent !important;
+        background: transparent !important;
+      }
+      .ms-Callout-main {
+        background-color: #ffffff !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        border-radius: 12px !important;
+        border: 1px solid #e2e8f0 !important;
       }
       .CanvasZone,
       .CanvasSection,

@@ -110,24 +110,24 @@ export const DataTablePagination: React.FC<IDataTablePaginationProps> = ({
 
   return (
     <div
-      className={`border-t border-slate-200/80 bg-white sm:bg-slate-50/50 px-4 py-1.5 sm:py-2 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-1.5 select-none ${className}`}
+      className={`border-t border-slate-200/80 bg-white sm:bg-slate-50/50 px-4 py-2 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 select-none ${className}`}
     >
       {/* Left Side: Summary Typography */}
-      <div className="text-xs sm:text-sm text-slate-600 font-medium order-2 sm:order-1 text-center sm:text-left">
+      <div className="text-[14px] text-slate-600 font-medium order-2 sm:order-1 text-center sm:text-left">
         Showing <span className="font-bold text-slate-900">{startRecord}</span>–
         <span className="font-bold text-slate-900">{endRecord}</span> of{" "}
         <span className="font-bold text-slate-900">{totalItems}</span> records
       </div>
 
       {/* Right Side: Page Controls */}
-      <div className="flex items-center gap-1 sm:gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+      <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
         {/* First Page */}
         <button
           type="button"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
           title="First Page"
-          className="h-8 w-8 sm:h-8.5 sm:w-8.5 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
         >
           <ChevronsLeftIcon className="w-4 h-4" />
         </button>
@@ -138,19 +138,19 @@ export const DataTablePagination: React.FC<IDataTablePaginationProps> = ({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
           title="Previous Page"
-          className="h-8 w-8 sm:h-8.5 sm:w-8.5 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
         >
           <ChevronLeftIcon className="w-4 h-4" />
         </button>
 
         {/* Page Number Buttons / Ellipses */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {range.map((item, index) => {
             if (item === "...") {
               return (
                 <span
                   key={`ellipsis-${index}`}
-                  className="h-8 w-6 sm:h-8.5 sm:w-8 inline-flex items-center justify-center text-xs font-bold text-slate-400 select-none"
+                  className="h-9 w-7 inline-flex items-center justify-center text-xs font-bold text-slate-400 select-none"
                 >
                   …
                 </span>
@@ -166,7 +166,7 @@ export const DataTablePagination: React.FC<IDataTablePaginationProps> = ({
                 type="button"
                 onClick={() => onPageChange(pageNum)}
                 aria-current={isActive ? "page" : undefined}
-                className={`h-8 min-w-[32px] sm:h-8.5 sm:min-w-[34px] px-2 text-xs sm:text-[13px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                className={`h-9 min-w-[36px] px-2.5 text-[14px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center ${
                   isActive
                     ? "bg-[#012964] text-white border border-[#012964] shadow-xs shadow-[#012964]/25 ring-1 ring-[#012964]/20"
                     : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 border border-slate-200/90 shadow-2xs"
@@ -184,7 +184,7 @@ export const DataTablePagination: React.FC<IDataTablePaginationProps> = ({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
           title="Next Page"
-          className="h-8 w-8 sm:h-8.5 sm:w-8.5 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
         >
           <ChevronRightIcon className="w-4 h-4" />
         </button>
@@ -195,7 +195,7 @@ export const DataTablePagination: React.FC<IDataTablePaginationProps> = ({
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage >= totalPages}
           title="Last Page"
-          className="h-8 w-8 sm:h-8.5 sm:w-8.5 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
         >
           <ChevronsRightIcon className="w-4 h-4" />
         </button>

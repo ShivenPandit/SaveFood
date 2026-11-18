@@ -40,6 +40,8 @@ export interface ITagPickerProps {
 
 const TagPeoplePicker: React.FC<ITagPickerProps> = ({
   context,
+  spHttpClient,
+  siteUrl,
   selectedUsers,
   onUsersSelected,
   disable = false,
@@ -49,7 +51,7 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
 
   // Get user photo URL exactly like SharePoint PeoplePicker does
   const getUserPhotoUrl = (userId: string, email: string): string => {
-    const baseUrl = context.pageContext.web.absoluteUrl;
+    const baseUrl = siteUrl || context.pageContext.web.absoluteUrl;
     return `${baseUrl}/_layouts/15/userphoto.aspx?size=S&accountname=${email}`;
   };
 
@@ -103,9 +105,55 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
     void enrichUsers();
   }, [selectedUsers, context]);
 
-  // Fetch user suggestions with photos - Updated to include employee ID search
+  // SharePoint Native Client People Picker Fallback (works in all tenants without Graph consent)
+  const fetchFromSharePoint = async (filterText: string): Promise<ITag[]> => {
+    try {
+      const targetSiteUrl = siteUrl || context.pageContext.web.absoluteUrl;
+      const url = `${targetSiteUrl}/_api/SP.UI.ApplicationPages.ClientPeoplePickerWebServiceInterface/ClientPeoplePickerSearchUser`;
+      const response = await spHttpClient.post(url, SPHttpClient.configurations.v1, {
+        headers: {
+          Accept: "application/json;odata=verbose",
+          "Content-Type": "application/json;odata=verbose",
+        },
+        body: JSON.stringify({
+          queryParams: {
+            __metadata: { type: "SP.UI.ApplicationPages.ClientPeoplePickerQueryParameters" },
+            AllowEmailAddresses: true,
+            AllowMultipleEntities: true,
+            AllUrlZones: false,
+            MaximumEntitySuggestions: 30,
+            PrincipalSource: 15,
+            PrincipalType: 1,
+            QueryString: filterText,
+          },
+        }),
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const rawResults = JSON.parse(json?.d?.ClientPeoplePickerSearchUser || "[]");
+        return rawResults.map((u: any) => {
+          const email = u.EntityData?.Email || u.Description || "";
+          return {
+            key: u.Key || email || u.DisplayText,
+            name: u.DisplayText,
+            email: email,
+            jobTitle: u.EntityData?.Title || u.EntityData?.Department,
+            employeeId: u.EntityData?.EmployeeID,
+            mobilePhone: u.EntityData?.MobilePhone,
+            photoUrl: getUserPhotoUrl(u.Key, email),
+          };
+        });
+      }
+    } catch (spErr) {
+      console.warn("SharePoint People Search fallback failed:", spErr);
+    }
+    return [];
+  };
+
+  // Fetch user suggestions with photos - Supports Microsoft Graph with SharePoint fallback
   const fetchEmails = async (filterText: string): Promise<ITag[]> => {
-    if (!filterText || filterText.length < 3) return [];
+    if (!filterText || filterText.trim().length < 2) return [];
 
     try {
       const client = await context.msGraphClientFactory.getClient("3");
@@ -120,21 +168,24 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
         .top(50)
         .get();
 
-      const usersWithPhotos: ITag[] = response.value.map((user: any) => ({
-        key: user.id,
-        name: user.displayName,
-        email: user.mail,
-        jobTitle: user.jobTitle,
-        employeeId: user.employeeId,
-        mobilePhone: user.mobilePhone,
-        photoUrl: getUserPhotoUrl(user.id, user.mail),
-      }));
+      if (response && response.value && response.value.length > 0) {
+        const usersWithPhotos: ITag[] = response.value.map((user: any) => ({
+          key: user.id || user.mail,
+          name: user.displayName,
+          email: user.mail,
+          jobTitle: user.jobTitle,
+          employeeId: user.employeeId,
+          mobilePhone: user.mobilePhone,
+          photoUrl: getUserPhotoUrl(user.id, user.mail),
+        }));
 
-      return usersWithPhotos;
+        return usersWithPhotos;
+      }
     } catch (err) {
-      console.error("Error fetching suggestions:", err);
-      return [];
+      // MS Graph error (e.g. unconsented permissions) - seamlessly fall back to SharePoint People Search
     }
+
+    return await fetchFromSharePoint(filterText.trim());
   };
 
   // Render each suggestion
@@ -154,37 +205,36 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
     </div>
   );
 
-  // Updated compact selected item renderer
+  // Compact selected user pill renderer
   const onRenderSelectedItem = (props: IPickerItemProps<ITag>): JSX.Element => {
     const item = props.item;
     return (
       <div
-        className="inline-flex items-center bg-blue-50 border border-blue-200 rounded-md px-2 py-1 mr-1 mb-1 text-lg"
+        className="inline-flex items-center bg-blue-50/90 border border-blue-200 rounded-lg px-2 py-1 mr-1.5 my-1 text-[13px] shadow-2xs select-none"
         style={{
-          fontSize: "13px",
           height: "28px",
-          width: "260px",
-          lineHeight: "22px",
+          maxWidth: "260px",
+          lineHeight: "20px",
         }}
       >
         <Persona
           text={item.name}
           imageUrl={item.photoUrl}
-          size={PersonaSize.size16}
+          size={PersonaSize.size24}
           hidePersonaDetails
           showInitialsUntilImageLoads={true}
           styles={{
-            root: { minWidth: "18px" },
+            root: { minWidth: "24px" },
           }}
         />
         <span
-          className="ml-1 text-gray-800 font-medium max-w-40 truncate"
-          title={`${item.name}${item.employeeId ? ` (${item.employeeId})` : ""}`}
+          className="ml-1.5 text-slate-800 font-semibold max-w-[150px] truncate text-[13px]"
+          title={`${item.name}${item.email ? ` (${item.email})` : ""}`}
         >
           {item.name}
         </span>
         {item.employeeId && (
-          <span className="ml-1 text-gray-500 text-xs">
+          <span className="ml-1 text-slate-400 text-[11px]">
             ({item.employeeId})
           </span>
         )}
@@ -192,15 +242,7 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
           type="button"
           onClick={() => props.onRemoveItem && props.onRemoveItem()}
           title="Remove"
-          className="ml-2 text-red-500 hover:text-red-600 transition text-sm hover:scale-105 font-bold leading-none"
-          style={{
-            fontSize: "13px",
-            width: "13px",
-            height: "13px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="ml-2 text-slate-400 hover:text-rose-600 transition text-sm font-bold leading-none cursor-pointer"
         >
           ×
         </button>
@@ -208,42 +250,42 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
     );
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-    const allowedKeys = [
-      "Backspace",
-      "Delete",
-      "ArrowLeft",
-      "ArrowRight",
-      "Tab",
-      " ",
-    ];
-    const isLetter = /^[a-zA-Z0-9]$/.test(e.key);
-    if (!isLetter && allowedKeys.indexOf(e.key) === -1) {
-      e.preventDefault();
-    }
-  };
-
   return (
-    <div onKeyDown={handleKeyDown}>
+    <div className="w-full">
       <TagPicker
         styles={{
           root: {
-            color: "black",
-            minHeight: "32px",
+            color: "#1e293b",
+            minHeight: "44px",
+            borderRadius: "10px",
+            borderColor: "#cbd5e1",
+            backgroundColor: "#ffffff",
           },
           input: {
-            color: "black",
-            fontSize: "13px",
+            color: "#0f172a",
+            fontSize: "14.5px",
+            fontWeight: 500,
+            padding: "6px 10px",
+            minWidth: "150px",
           },
           text: {
-            color: "black",
-            fontSize: "13px",
+            color: "#0f172a",
+            fontSize: "14.5px",
+            minHeight: "44px",
+            display: "flex",
+            alignItems: "center",
+            padding: "2px 8px",
+            borderColor: "#cbd5e1",
+            borderRadius: "10px",
           },
           itemsWrapper: {
-            color: "black",
+            padding: "2px",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
           },
         }}
-        className="text-black dark:text-white"
+        className="text-slate-800"
         onResolveSuggestions={fetchEmails}
         selectedItems={peoplePickerUsers}
         onChange={(items?: IFluentTag[]) => {
@@ -276,12 +318,12 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
         pickerSuggestionsProps={{
           suggestionsHeaderText: "Suggested Users",
           noResultsFoundText: "No matching users found",
-          searchingText: "Searching users...",
+          searchingText: "Searching directory...",
         }}
         itemLimit={itemLimit === 1 ? 1 : undefined}
         disabled={disable}
         inputProps={{
-          placeholder: "Search by name, email, or employee ID...",
+          placeholder: peoplePickerUsers.length === 0 ? "Search by name or email..." : "",
         }}
       />
     </div>

@@ -91,25 +91,23 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
       {/* Top Header Row: BackButton on Left, Switcher Tabs on Right */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 mb-2">
         <BackButton onClick={onBack} />
 
-        {/* Switcher Tabs (Aligned on same row as Back Button) */}
-        <div className="flex items-center gap-6 border-b border-slate-200 self-start sm:self-auto">
+        {/* Modern Segmented Control Pill Tabs */}
+        <div className="inline-flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/90 shadow-2xs self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setActiveTab("dashboard")}
-            className={`inline-flex items-center gap-2 pb-2 text-xs sm:text-sm font-bold transition-all cursor-pointer select-none ${
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13.5px] sm:text-[14px] font-bold transition-all duration-150 cursor-pointer select-none whitespace-nowrap ${
               activeTab === "dashboard"
-                ? "text-[#0f172a] border-b-[2.5px] border-[#0f172a]"
-                : "text-[#64748b] hover:text-[#334155] border-b-[2.5px] border-transparent"
+                ? "bg-[#004B87] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
             }`}
           >
             <svg
               viewBox="0 0 24 24"
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
+              className="w-4 h-4 shrink-0 fill-none stroke-current"
               strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -125,17 +123,15 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("requests")}
-            className={`inline-flex items-center gap-2 pb-2 text-xs sm:text-sm font-bold transition-all cursor-pointer select-none ${
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13.5px] sm:text-[14px] font-bold transition-all duration-150 cursor-pointer select-none whitespace-nowrap ${
               activeTab === "requests"
-                ? "text-[#0f172a] border-b-[2.5px] border-[#0f172a]"
-                : "text-[#64748b] hover:text-[#334155] border-b-[2.5px] border-transparent"
+                ? "bg-[#004B87] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
             }`}
           >
             <svg
               viewBox="0 0 24 24"
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
+              className="w-4 h-4 shrink-0 fill-none stroke-current"
               strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -166,87 +162,89 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
       {/* Tab 1 Content: Report Dashboard & Sustainability Analytics */}
       {activeTab === "dashboard" && (
         <>
-          {/* Dashboard Heading */}
-          <div className="mb-3.5">
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          {/* Compact Single-Row Page Header & Summary Strip */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
+            {/* Left: Page Title & Subtitle */}
+            <div>
+              <h2 className="text-[22px] sm:text-[24px] font-bold text-[#0f172a] tracking-tight">
                 Reports &amp; Sustainability Analytics
               </h2>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Real-time catering optimization, food waste prevention metrics, and location trends.
-            </p>
-          </div>
-
-          {isLoading ? (
-            <div
-              style={{ height: "auto", flex: "0 0 auto", padding: "24px" }}
-              className="bg-white rounded-2xl border-2 border-slate-200/90 text-center shadow-sm"
-            >
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#004B87] border-t-transparent" />
-              <p className="mt-3 text-xs sm:text-sm font-semibold text-slate-500">
-                Calculating sustainability analytics...
+              <p className="text-[13.5px] text-[#475569] leading-snug mt-0.5">
+                Real-time catering optimization, food waste prevention metrics, and location trends.
               </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Executive Summary Card: Total Headcount Saved */}
-              <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#004B87] flex items-center justify-center border border-blue-100 shrink-0">
-                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Total Headcount Saved
-                    </span>
-                    <p className="text-2xl sm:text-3xl font-black text-[#003865] tracking-tight leading-none mt-1">
-                      {stats.total.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
 
-                {/* Shifts Distribution Badges */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-slate-600 mr-1">Meal Shifts:</span>
-                  <span className="bg-amber-50 text-amber-800 text-xs font-bold px-3 py-1 rounded-lg border border-amber-200">
-                    🍳 Breakfast: {stats.breakfast}
+            {/* Right: Sleek Compact KPI Pill Card */}
+            <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs px-3.5 py-2 flex items-center gap-3 sm:gap-4 flex-wrap self-start lg:self-auto shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#004B87] flex items-center justify-center border border-blue-100 shrink-0">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block leading-none">
+                    TOTAL HEADCOUNT SAVED
                   </span>
-                  <span className="bg-blue-50 text-blue-800 text-xs font-bold px-3 py-1 rounded-lg border border-blue-200">
-                    🥗 Lunch: {stats.lunch}
-                  </span>
-                  <span className="bg-purple-50 text-purple-800 text-xs font-bold px-3 py-1 rounded-lg border border-purple-200">
-                    🍲 Dinner: {stats.dinner}
+                  <span className="text-[22px] sm:text-[24px] font-extrabold text-[#003865] tracking-tight leading-none">
+                    {stats.total.toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              {/* Breakdown Grid: Meal Types & Locations */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {/* Meal Type Breakdown Card */}
-                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-5 shadow-xs">
-                  <div className="flex items-center justify-between mb-3.5">
+              <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+              {/* Inline Shift Chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="bg-amber-50 text-amber-800 text-[12px] font-semibold px-2.5 py-1 rounded-lg border border-amber-200/80">
+                  🍳 Breakfast: {stats.breakfast}
+                </span>
+                <span className="bg-blue-50 text-blue-800 text-[12px] font-semibold px-2.5 py-1 rounded-lg border border-blue-200/80">
+                  🥗 Lunch: {stats.lunch}
+                </span>
+                <span className="bg-purple-50 text-purple-800 text-[12px] font-semibold px-2.5 py-1 rounded-lg border border-purple-200/80">
+                  🍲 Dinner: {stats.dinner}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div
+              style={{ height: "auto", flex: "0 0 auto", padding: "32px" }}
+              className="bg-white rounded-2xl border-2 border-slate-200/90 text-center shadow-sm"
+            >
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#004B87] border-t-transparent" />
+              <p className="mt-3 text-[14.5px] font-semibold text-slate-500">
+                Calculating sustainability analytics...
+              </p>
+            </div>
+          ) : (
+            /* Balanced Two-Column Bento Grid: Meal Distribution & Location Savings */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 items-stretch">
+              {/* Left Card: Opt-Out Distribution by Meal Type (5 cols on lg) */}
+              <div className="lg:col-span-5 bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-4.5 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h4 className="text-sm sm:text-base font-extrabold text-slate-900">
+                      <h4 className="text-[16px] sm:text-[17px] font-bold text-slate-900">
                         Opt-Out Distribution by Meal Type
                       </h4>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-[12.5px] text-slate-500 mt-0.5">
                         Catering cancellations across operational shifts
                       </p>
                     </div>
-                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
-                      3 Meal Shifts
+                    <span className="text-[12px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                      3 Shifts
                     </span>
                   </div>
 
                   {/* Segmented Proportional Progress Track */}
                   {stats.total > 0 && (
-                    <div className="mb-4">
+                    <div className="mb-3">
                       <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
                         <div
                           className="bg-amber-500 transition-all duration-500"
@@ -267,15 +265,15 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
                     </div>
                   )}
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {/* Breakfast */}
                     <div className="p-2.5 rounded-xl border border-amber-100 bg-amber-50/30">
-                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1.5">
+                      <div className="flex items-center justify-between text-[13.5px] font-semibold mb-1">
                         <span className="text-amber-800 flex items-center gap-1.5">
                           <span>🍳</span> Breakfast
                         </span>
-                        <span className="text-slate-900 font-extrabold">
-                          {stats.breakfast} <span className="text-slate-500 font-normal">({stats.total > 0 ? Math.round((stats.breakfast / stats.total) * 100) : 0}%)</span>
+                        <span className="text-slate-900 font-bold">
+                          {stats.breakfast} <span className="text-slate-500 font-normal text-[12.5px]">({stats.total > 0 ? Math.round((stats.breakfast / stats.total) * 100) : 0}%)</span>
                         </span>
                       </div>
                       <div className="h-2 w-full bg-amber-100/70 rounded-full overflow-hidden">
@@ -290,12 +288,12 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
 
                     {/* Lunch */}
                     <div className="p-2.5 rounded-xl border border-blue-100 bg-blue-50/30">
-                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1.5">
+                      <div className="flex items-center justify-between text-[13.5px] font-semibold mb-1">
                         <span className="text-blue-800 flex items-center gap-1.5">
                           <span>🥗</span> Lunch
                         </span>
-                        <span className="text-slate-900 font-extrabold">
-                          {stats.lunch} <span className="text-slate-500 font-normal">({stats.total > 0 ? Math.round((stats.lunch / stats.total) * 100) : 0}%)</span>
+                        <span className="text-slate-900 font-bold">
+                          {stats.lunch} <span className="text-slate-500 font-normal text-[12.5px]">({stats.total > 0 ? Math.round((stats.lunch / stats.total) * 100) : 0}%)</span>
                         </span>
                       </div>
                       <div className="h-2 w-full bg-blue-100/70 rounded-full overflow-hidden">
@@ -310,12 +308,12 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
 
                     {/* Dinner */}
                     <div className="p-2.5 rounded-xl border border-purple-100 bg-purple-50/30">
-                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1.5">
+                      <div className="flex items-center justify-between text-[13.5px] font-semibold mb-1">
                         <span className="text-purple-800 flex items-center gap-1.5">
                           <span>🍲</span> Dinner
                         </span>
-                        <span className="text-slate-900 font-extrabold">
-                          {stats.dinner} <span className="text-slate-500 font-normal">({stats.total > 0 ? Math.round((stats.dinner / stats.total) * 100) : 0}%)</span>
+                        <span className="text-slate-900 font-bold">
+                          {stats.dinner} <span className="text-slate-500 font-normal text-[12.5px]">({stats.total > 0 ? Math.round((stats.dinner / stats.total) * 100) : 0}%)</span>
                         </span>
                       </div>
                       <div className="h-2 w-full bg-purple-100/70 rounded-full overflow-hidden">
@@ -329,69 +327,70 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Location Leaderboard Card */}
-                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-5 shadow-xs">
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div>
-                      <h4 className="text-sm sm:text-base font-extrabold text-slate-900">
-                        Headcount Savings by Location
-                      </h4>
-                      <p className="text-xs text-slate-500">
-                        Catering reduction ranked across facilities
-                      </p>
-                    </div>
-                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
-                      {Object.keys(stats.locationMap).length} Facilities
-                    </span>
+              {/* Right Card: Headcount Savings by Location (7 cols on lg) */}
+              <div className="lg:col-span-7 bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-4.5 shadow-xs">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-[16px] sm:text-[17px] font-bold text-slate-900">
+                      Headcount Savings by Location
+                    </h4>
+                    <p className="text-[12.5px] text-slate-500 mt-0.5">
+                      Catering reduction ranked across facilities
+                    </p>
                   </div>
-
-                  {Object.keys(stats.locationMap).length === 0 ? (
-                    <div className="py-8 text-center text-slate-400 text-xs">
-                      No location data available yet.
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {Object.keys(stats.locationMap)
-                        .sort((a, b) => (stats.locationMap[b] || 0) - (stats.locationMap[a] || 0))
-                        .map((loc, index) => {
-                          const count = stats.locationMap[loc] || 0;
-                          const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-                          return (
-                            <div key={loc} className="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/40">
-                              <div className="flex items-center justify-between text-xs sm:text-sm font-semibold mb-1.5">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span
-                                    className={`w-5 h-5 rounded-md flex items-center justify-center text-[10.5px] font-black shrink-0 ${
-                                      index === 0
-                                        ? "bg-amber-100 text-amber-900 border border-amber-300"
-                                        : index === 1
-                                        ? "bg-slate-200 text-slate-800 border border-slate-300"
-                                        : index === 2
-                                        ? "bg-orange-100 text-orange-900 border border-orange-300"
-                                        : "bg-slate-100 text-slate-600 border border-slate-200"
-                                    }`}
-                                  >
-                                    #{index + 1}
-                                  </span>
-                                  <span className="text-slate-900 font-bold truncate">{loc}</span>
-                                </div>
-                                <span className="text-slate-700 font-black text-xs shrink-0">
-                                  {count} <span className="text-slate-500 font-normal">({pct}%)</span>
-                                </span>
-                              </div>
-                              <div className="h-2 w-full bg-slate-200/60 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
+                  <span className="text-[12px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                    {Object.keys(stats.locationMap).length} Facilities
+                  </span>
                 </div>
+
+                {Object.keys(stats.locationMap).length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-[14px]">
+                    No location data available yet.
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {Object.keys(stats.locationMap)
+                      .sort((a, b) => (stats.locationMap[b] || 0) - (stats.locationMap[a] || 0))
+                      .map((loc, index) => {
+                        const count = stats.locationMap[loc] || 0;
+                        const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+                        return (
+                          <div
+                            key={loc}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex items-center gap-2.5"
+                          >
+                            <span
+                              className={`w-5 h-5 rounded-md flex items-center justify-center text-[11px] font-black shrink-0 ${
+                                index === 0
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                  : index === 1
+                                  ? "bg-slate-200 text-slate-800 border border-slate-300"
+                                  : index === 2
+                                  ? "bg-orange-100 text-orange-900 border border-orange-300"
+                                  : "bg-slate-100 text-slate-600 border border-slate-200"
+                              }`}
+                            >
+                              #{index + 1}
+                            </span>
+                            <span className="text-slate-900 font-bold text-[13px] w-24 sm:w-28 truncate shrink-0">
+                              {loc}
+                            </span>
+                            <div className="flex-1 h-2 bg-slate-200/70 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-slate-800 font-bold text-[12.5px] shrink-0 text-right min-w-[55px]">
+                              {count} <span className="text-slate-500 font-normal text-[11.5px]">({pct}%)</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
             </div>
           )}
