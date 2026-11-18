@@ -227,7 +227,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
       {/* Top Header */}
-      <div className="mb-2 sm:mb-2.5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 w-full">
+      <div className="mb-2 sm:mb-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 w-full">
         <div>
           <BackButton onClick={onBack} className="mb-1.5" />
           <h2 className="text-[26px] sm:text-[28px] font-bold text-[#0f172a] tracking-tight">
@@ -239,7 +239,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
         </div>
 
         {/* Action Controls Bar */}
-        <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
           {/* Filters Toggle Button & Dropdown Popover */}
           <div ref={filterRef} className="relative">
             <button

@@ -210,11 +210,11 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
     const item = props.item;
     return (
       <div
-        className="inline-flex items-center bg-blue-50/90 border border-blue-200 rounded-lg px-2 py-1 mr-1.5 my-1 text-[13px] shadow-2xs select-none"
+        className="inline-flex items-center bg-blue-50/90 border border-blue-200 rounded-lg px-2 py-0.5 mr-1.5 my-0.5 text-[12.5px] shadow-2xs select-none"
         style={{
-          height: "28px",
-          maxWidth: "260px",
-          lineHeight: "20px",
+          height: "26px",
+          maxWidth: "210px",
+          lineHeight: "18px",
         }}
       >
         <Persona
@@ -228,13 +228,13 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
           }}
         />
         <span
-          className="ml-1.5 text-slate-800 font-semibold max-w-[150px] truncate text-[13px]"
+          className="ml-1.5 text-slate-800 font-semibold max-w-[120px] truncate text-[12.5px]"
           title={`${item.name}${item.email ? ` (${item.email})` : ""}`}
         >
           {item.name}
         </span>
         {item.employeeId && (
-          <span className="ml-1 text-slate-400 text-[11px]">
+          <span className="ml-1 text-slate-400 text-[10.5px]">
             ({item.employeeId})
           </span>
         )}
@@ -242,7 +242,7 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
           type="button"
           onClick={() => props.onRemoveItem && props.onRemoveItem()}
           title="Remove"
-          className="ml-2 text-slate-400 hover:text-rose-600 transition text-sm font-bold leading-none cursor-pointer"
+          className="ml-1.5 text-slate-400 hover:text-rose-600 transition text-sm font-bold leading-none cursor-pointer"
         >
           ×
         </button>
@@ -256,22 +256,24 @@ const TagPeoplePicker: React.FC<ITagPickerProps> = ({
         styles={{
           root: {
             color: "#1e293b",
-            minHeight: "44px",
+            minHeight: "42px",
             borderRadius: "10px",
             borderColor: "#cbd5e1",
             backgroundColor: "#ffffff",
           },
           input: {
             color: "#0f172a",
-            fontSize: "14.5px",
+            fontSize: "14px",
             fontWeight: 500,
-            padding: "6px 10px",
-            minWidth: "150px",
+            padding: "5px 8px",
+            minWidth: "140px",
           },
           text: {
             color: "#0f172a",
-            fontSize: "14.5px",
-            minHeight: "44px",
+            fontSize: "14px",
+            minHeight: "42px",
+            maxHeight: "110px",
+            overflowY: "auto",
             display: "flex",
             alignItems: "center",
             padding: "2px 8px",

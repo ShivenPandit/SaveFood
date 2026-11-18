@@ -73,6 +73,40 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
     }
   };
 
+  // Filter Popover state & Click Outside Handler
+  const [isFilterOpen, setIsFilterOpen] = React.useState<boolean>(false);
+  const filterRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent): void => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+    if (isFilterOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isFilterOpen]);
+
+  // Active filter count for badge
+  const activeFilterCount = React.useMemo(() => {
+    let count = 0;
+    if (!isAllDatesActive) count++;
+    if (filterLocationId !== "all") count++;
+    if (selectedRequesters.length > 0) count++;
+    return count;
+  }, [isAllDatesActive, filterLocationId, selectedRequesters]);
+
+  const handleResetFilters = (): void => {
+    setStartDate(null);
+    setEndDate(null);
+    setFilterLocationId("all");
+    setSelectedRequesters([]);
+  };
+
   // Pagination
   const [nextUrl, setNextUrl] = React.useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = React.useState<boolean>(false);
@@ -211,184 +245,273 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
       {/* Top Header */}
-      <div className="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="mb-2 sm:mb-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
         <div>
-          {!hideBackButton && <BackButton onClick={onBack} className="mb-1.5" />}
+          {!hideBackButton && <BackButton onClick={onBack} className="mb-1" />}
           <div className="flex items-center gap-2">
-            <h2 className="text-[26px] sm:text-[28px] font-bold text-[#0f172a] tracking-tight">
+            <h2 className="text-[22px] sm:text-[24px] font-bold text-[#0f172a] tracking-tight">
               All Meal Opt-Out Requests
             </h2>
           </div>
-          <p className="text-[15px] text-[#475569] leading-relaxed mt-1">
+          <p className="text-[13.5px] text-[#475569] leading-snug mt-0.5">
             Consolidated kitchen catering headcount roster and location-wise opt-out records.
           </p>
         </div>
 
-        {/* Count Pill */}
-        <div className="flex items-center gap-2 self-start md:self-auto bg-slate-100 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-slate-700">
-          <span>Total Records Shown:</span>
-          <span className="text-[#004B87] font-bold text-[14.5px]">{filteredRequests.length}</span>
-        </div>
-      </div>
-
-      {/* Filter Bar Card */}
-      <div
-        style={{ height: "auto", flex: "0 0 auto" }}
-        className="bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-4 sm:p-5 mb-2.5"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
-          {/* 1. Date Range Filter & Quick Presets (5 cols on xl, 12 cols on md) */}
-          <div className="md:col-span-12 xl:col-span-5 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className="block text-[14.5px] font-semibold text-[#1e293b]">
-                Filter by Meal Date Range
-              </label>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStartDate(todayISOString);
-                    setEndDate(todayISOString);
-                  }}
-                  title="Filter for Today"
-                  className={`px-3 py-1 rounded-lg text-[13px] font-semibold border transition cursor-pointer ${
-                    isTodayActive
-                      ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
-                      : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  Today
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStartDate(tomorrowISOString);
-                    setEndDate(tomorrowISOString);
-                  }}
-                  title="Filter for Tomorrow"
-                  className={`px-3 py-1 rounded-lg text-[13px] font-semibold border transition cursor-pointer ${
-                    isTomorrowActive
-                      ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
-                      : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  Tomorrow
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStartDate(null);
-                    setEndDate(null);
-                  }}
-                  title="View All Dates"
-                  className={`px-3 py-1 rounded-lg text-[13px] font-semibold border transition cursor-pointer ${
-                    isAllDatesActive
-                      ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
-                      : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  All Dates
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* From Date */}
-              <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[44px]">
-                <span className="px-3 text-[13px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2.5 select-none shrink-0">
-                  From
-                </span>
-                <input
-                  type="date"
-                  value={startDate || ""}
-                  max={endDate || undefined}
-                  onChange={(e) => handleStartDateChange(e.target.value || null)}
-                  aria-label="From Date"
-                  className="w-full h-[44px] px-3 text-[14.5px] font-medium text-slate-800 bg-white focus:outline-none"
-                />
-              </div>
-
-              <span className="text-slate-400 font-bold text-sm shrink-0 select-none">to</span>
-
-              {/* To Date */}
-              <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[44px]">
-                <span className="px-3 text-[13px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2.5 select-none shrink-0">
-                  To
-                </span>
-                <input
-                  type="date"
-                  value={endDate || ""}
-                  min={startDate || undefined}
-                  onChange={(e) => handleEndDateChange(e.target.value || null)}
-                  aria-label="To Date"
-                  className="w-full h-[44px] px-3 text-[14.5px] font-medium text-slate-800 bg-white focus:outline-none"
-                />
-              </div>
-
-              {/* Clear Range Button */}
-              {isCustomRange && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStartDate(null);
-                    setEndDate(null);
-                  }}
-                  title="Clear Date Filter"
-                  className="h-[44px] px-3 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center shrink-0 cursor-pointer"
-                >
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 2. Location Filter */}
-          <div className="md:col-span-5 xl:col-span-3">
-            <label className="block text-[14.5px] font-semibold text-[#1e293b] mb-1.5">
-              Filter by Location
-            </label>
-            <select
-              value={filterLocationId}
-              onChange={(e) =>
-                setFilterLocationId(e.target.value === "all" ? "all" : Number(e.target.value))
-              }
-              className="w-full min-h-[44px] h-[44px] px-3.5 rounded-xl border border-slate-300 text-[14.5px] font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#004B87] bg-white"
+        {/* Action Controls: Filter Button & Records Count Pill */}
+        <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
+          {/* Filters Toggle Button & Dropdown Popover */}
+          <div ref={filterRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              aria-expanded={isFilterOpen}
+              className={`h-[40px] px-3.5 rounded-xl border inline-flex items-center gap-2 text-[14px] font-semibold transition cursor-pointer select-none whitespace-nowrap ${
+                isFilterOpen || activeFilterCount > 0
+                  ? "bg-blue-50/80 border-[#004B87] text-[#004B87] shadow-2xs ring-1 ring-[#004B87]/20"
+                  : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+              }`}
             >
-              <option value="all">All Mess Locations</option>
-              {locations.map((loc) => (
-                <option key={loc.Id} value={loc.Id}>
-                  {loc.Title}
-                </option>
-              ))}
-            </select>
+              <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-[#004B87] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                  {activeFilterCount}
+                </span>
+              )}
+              <svg
+                viewBox="0 0 24 24"
+                className={`w-3.5 h-3.5 shrink-0 fill-none stroke-current transition-transform duration-200 ${
+                  isFilterOpen ? "rotate-180" : ""
+                }`}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {/* Advanced Search Criteria Dropdown Popover */}
+            {isFilterOpen && (
+              <>
+                {/* Responsive Backdrop (< lg screens) */}
+                <div
+                  className="fixed inset-0 bg-slate-900/40 z-40 lg:hidden backdrop-blur-xs"
+                  onClick={() => setIsFilterOpen(false)}
+                />
+
+                <div
+                  className="fixed inset-x-4 top-20 max-w-lg mx-auto lg:mx-0 lg:max-w-none lg:inset-x-auto lg:absolute lg:top-full lg:right-0 mt-0 lg:mt-2 w-auto lg:w-[460px] max-h-[85vh] overflow-y-auto bg-white rounded-2xl border-2 border-slate-200/90 shadow-2xl p-4 sm:p-5 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  style={{ filter: "drop-shadow(0 20px 25px -5px rgba(0, 0, 0, 0.2))" }}
+                >
+                  {/* Popover Header */}
+                  <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100">
+                    <div className="flex items-center gap-2 text-[#0f172a]">
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#004B87] flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                        </svg>
+                      </div>
+                      <h3 className="text-[16px] font-bold tracking-tight">Advanced Filter Criteria</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsFilterOpen(false)}
+                      className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
+                      title="Close filters"
+                      aria-label="Close filters"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Popover Form Fields */}
+                  <div className="space-y-3.5">
+                    {/* 1. Date Range Filter & Quick Presets */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-[12px] font-bold text-slate-600 uppercase tracking-wider">
+                          MEAL DATE RANGE
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStartDate(todayISOString);
+                              setEndDate(todayISOString);
+                            }}
+                            className={`px-2.5 py-0.5 rounded-md text-[12px] font-semibold border transition cursor-pointer ${
+                              isTodayActive
+                                ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
+                                : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            Today
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStartDate(tomorrowISOString);
+                              setEndDate(tomorrowISOString);
+                            }}
+                            className={`px-2.5 py-0.5 rounded-md text-[12px] font-semibold border transition cursor-pointer ${
+                              isTomorrowActive
+                                ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
+                                : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            Tomorrow
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStartDate(null);
+                              setEndDate(null);
+                            }}
+                            className={`px-2.5 py-0.5 rounded-md text-[12px] font-semibold border transition cursor-pointer ${
+                              isAllDatesActive
+                                ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
+                                : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            All Dates
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* From Date */}
+                        <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[40px]">
+                          <span className="px-2.5 text-[12.5px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2 select-none shrink-0">
+                            From
+                          </span>
+                          <input
+                            type="date"
+                            value={startDate || ""}
+                            max={endDate || undefined}
+                            onChange={(e) => handleStartDateChange(e.target.value || null)}
+                            aria-label="From Date"
+                            className="w-full h-[40px] px-2.5 text-[13.5px] font-medium text-slate-800 bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        <span className="text-slate-400 font-bold text-xs shrink-0 select-none">to</span>
+
+                        {/* To Date */}
+                        <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[40px]">
+                          <span className="px-2.5 text-[12.5px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2 select-none shrink-0">
+                            To
+                          </span>
+                          <input
+                            type="date"
+                            value={endDate || ""}
+                            min={startDate || undefined}
+                            onChange={(e) => handleEndDateChange(e.target.value || null)}
+                            aria-label="To Date"
+                            className="w-full h-[40px] px-2.5 text-[13.5px] font-medium text-slate-800 bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Clear Range Button */}
+                        {isCustomRange && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStartDate(null);
+                              setEndDate(null);
+                            }}
+                            title="Clear Date Filter"
+                            className="h-[40px] px-2.5 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center shrink-0 cursor-pointer"
+                          >
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 2. Canteen / Mess Location Filter */}
+                    <div>
+                      <label className="block text-[12px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                        CANTEEN LOCATION
+                      </label>
+                      <select
+                        value={filterLocationId}
+                        onChange={(e) =>
+                          setFilterLocationId(e.target.value === "all" ? "all" : Number(e.target.value))
+                        }
+                        className="w-full h-10 px-3 rounded-xl border border-slate-300 text-[14px] font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#004B87]"
+                      >
+                        <option value="all">All Mess Locations</option>
+                        {locations.map((loc) => (
+                          <option key={loc.Id} value={loc.Id}>
+                            {loc.Title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 3. Multi-Person Requester Filter */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-[12px] font-bold text-slate-600 uppercase tracking-wider">
+                          EMPLOYEE / REQUESTER
+                        </label>
+                        {selectedRequesters.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRequesters([])}
+                            className="text-[11.5px] font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer"
+                          >
+                            Clear ({selectedRequesters.length})
+                          </button>
+                        )}
+                      </div>
+                      <TagPeoplePicker
+                        context={context}
+                        spHttpClient={spHttpClient}
+                        siteUrl={siteUrl}
+                        selectedUsers={selectedRequesters}
+                        onUsersSelected={setSelectedRequesters}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Popover Footer */}
+                  <div className="flex items-center justify-between pt-3.5 mt-4 border-t border-slate-100 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      disabled={activeFilterCount === 0}
+                      className="px-3.5 py-2 rounded-xl text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      Reset All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsFilterOpen(false)}
+                      className="px-5 py-2 rounded-xl bg-[#004B87] hover:bg-[#003865] text-white text-[13.5px] font-bold shadow-xs hover:shadow transition cursor-pointer"
+                    >
+                      Apply &amp; Close
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* 3. Multi-Person Requester Filter */}
-          <div className="md:col-span-7 xl:col-span-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[14.5px] font-semibold text-[#1e293b]">
-                Filter by Requester Name
-              </label>
-              {selectedRequesters.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedRequesters([])}
-                  className="text-[12px] font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer"
-                >
-                  Clear ({selectedRequesters.length})
-                </button>
-              )}
-            </div>
-            <TagPeoplePicker
-              context={context}
-              spHttpClient={spHttpClient}
-              siteUrl={siteUrl}
-              selectedUsers={selectedRequesters}
-              onUsersSelected={setSelectedRequesters}
-            />
+          {/* Count Pill */}
+          <div className="flex items-center gap-1.5 bg-slate-100 px-3.5 py-2 rounded-xl text-[13px] font-semibold text-slate-700">
+            <span>Total Records:</span>
+            <span className="text-[#004B87] font-bold text-[14px]">{filteredRequests.length}</span>
           </div>
         </div>
       </div>
@@ -440,14 +563,14 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
             {/* Desktop Table View (>= 640px) */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-[14.5px]">
-                <thead className="bg-slate-50 border-b border-slate-200 text-[#475569] font-bold uppercase tracking-wider text-[12.5px] sm:text-[13px]">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[#475569] font-bold uppercase tracking-wider text-[12px] sm:text-[12.5px]">
                   <tr>
-                    <th className="py-3.5 px-4 sm:px-5">Meal Date</th>
-                    <th className="py-3.5 px-4">Meal Type</th>
-                    <th className="py-3.5 px-4">Location</th>
-                    <th className="py-3.5 px-4">Employee / Requester</th>
-                    <th className="py-3.5 px-4">Email</th>
-                    <th className="py-3.5 px-4 sm:px-5 text-right">Submitted Timestamp</th>
+                    <th className="py-2.5 sm:py-2.5 px-4 sm:px-5">Meal Date</th>
+                    <th className="py-2.5 sm:py-2.5 px-4">Meal Type</th>
+                    <th className="py-2.5 sm:py-2.5 px-4">Location</th>
+                    <th className="py-2.5 sm:py-2.5 px-4">Employee / Requester</th>
+                    <th className="py-2.5 sm:py-2.5 px-4">Email</th>
+                    <th className="py-2.5 sm:py-2.5 px-4 sm:px-5 text-right">Submitted Timestamp</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -472,12 +595,12 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
                     return (
                       <tr key={item.Id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
+                        <td className="py-2.5 sm:py-2.5 px-4 sm:px-5 font-bold text-slate-900 whitespace-nowrap">
                           {formattedMealDate}
                         </td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">
+                        <td className="py-2.5 sm:py-2.5 px-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-[13px] font-semibold ${
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-semibold ${
                               item.MealType === "Breakfast"
                                 ? "bg-amber-50 text-amber-800 border border-amber-200"
                                 : item.MealType === "Lunch"
@@ -489,16 +612,16 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
                             <span className="ml-1">{item.MealType}</span>
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
+                        <td className="py-2.5 sm:py-2.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
                           {item.Location?.Title || "—"}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+                        <td className="py-2.5 sm:py-2.5 px-4 font-bold text-slate-900 whitespace-nowrap">
                           {item.Requester?.Title || "Employee"}
                         </td>
-                        <td className="py-3.5 px-4 text-slate-500 font-mono text-[13px] whitespace-nowrap">
+                        <td className="py-2.5 sm:py-2.5 px-4 text-slate-500 font-mono text-[12.5px] whitespace-nowrap">
                           {item.Requester?.EMail || "—"}
                         </td>
-                        <td className="py-3.5 px-4 sm:px-5 text-right text-slate-500 whitespace-nowrap text-[13.5px]">
+                        <td className="py-2.5 sm:py-2.5 px-4 sm:px-5 text-right text-slate-500 whitespace-nowrap text-[13px]">
                           {formattedCreated}
                         </td>
                       </tr>

@@ -37,8 +37,8 @@ export const calculateOptimalPageSize = (
     return 3; // mobile card pagination
   }
 
-  // For my-requests, strictly enforce 8 rows on desktop so table and pagination footer fit cleanly above taskbar
-  if (viewType === "my-requests") {
+  // For my-requests and all-requests, strictly enforce 8 rows on desktop so table and pagination footer fit cleanly above taskbar
+  if (viewType === "my-requests" || viewType === "all-requests") {
     return 8;
   }
 
