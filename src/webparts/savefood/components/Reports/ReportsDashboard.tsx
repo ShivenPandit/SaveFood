@@ -190,49 +190,95 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Metric Cards Strip (Total Meals Saved & Canteen Locations) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* 1. Total Opt-Outs */}
-                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-5 shadow-xs">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Total Meals Saved
-                  </span>
-                  <p className="text-2xl sm:text-3xl font-black text-[#004B87] mt-1">
-                    {stats.total.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">Direct catering cancellations</p>
+              {/* Executive Summary Card: Total Headcount Saved */}
+              <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#004B87] flex items-center justify-center border border-blue-100 shrink-0">
+                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Total Headcount Saved
+                    </span>
+                    <p className="text-2xl sm:text-3xl font-black text-[#003865] tracking-tight leading-none mt-1">
+                      {stats.total.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
 
-                {/* 2. Active Dining Locations */}
-                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-5 shadow-xs">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Canteen Locations
+                {/* Shifts Distribution Badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-600 mr-1">Meal Shifts:</span>
+                  <span className="bg-amber-50 text-amber-800 text-xs font-bold px-3 py-1 rounded-lg border border-amber-200">
+                    🍳 Breakfast: {stats.breakfast}
                   </span>
-                  <p className="text-2xl sm:text-3xl font-black text-purple-700 mt-1">
-                    {Object.keys(stats.locationMap).length}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">Participating plant facilities</p>
+                  <span className="bg-blue-50 text-blue-800 text-xs font-bold px-3 py-1 rounded-lg border border-blue-200">
+                    🥗 Lunch: {stats.lunch}
+                  </span>
+                  <span className="bg-purple-50 text-purple-800 text-xs font-bold px-3 py-1 rounded-lg border border-purple-200">
+                    🍲 Dinner: {stats.dinner}
+                  </span>
                 </div>
               </div>
 
               {/* Breakdown Grid: Meal Types & Locations */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Meal Type Breakdown Card */}
-                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-5 sm:p-6 shadow-xs">
-                  <h4 className="text-base font-extrabold text-slate-900 mb-4">
-                    Opt-Out Distribution by Meal Type
-                  </h4>
-
-                  <div className="space-y-4">
-                    {/* Breakfast */}
+                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-5 shadow-xs">
+                  <div className="flex items-center justify-between mb-3.5">
                     <div>
-                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1">
-                        <span className="text-amber-800">🍳 Breakfast</span>
-                        <span className="text-slate-800">
-                          {stats.breakfast} ({stats.total > 0 ? Math.round((stats.breakfast / stats.total) * 100) : 0}%)
+                      <h4 className="text-sm sm:text-base font-extrabold text-slate-900">
+                        Opt-Out Distribution by Meal Type
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Catering cancellations across operational shifts
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      3 Meal Shifts
+                    </span>
+                  </div>
+
+                  {/* Segmented Proportional Progress Track */}
+                  {stats.total > 0 && (
+                    <div className="mb-4">
+                      <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                        <div
+                          className="bg-amber-500 transition-all duration-500"
+                          style={{ width: `${(stats.breakfast / stats.total) * 100}%` }}
+                          title={`Breakfast: ${stats.breakfast}`}
+                        />
+                        <div
+                          className="bg-blue-600 transition-all duration-500"
+                          style={{ width: `${(stats.lunch / stats.total) * 100}%` }}
+                          title={`Lunch: ${stats.lunch}`}
+                        />
+                        <div
+                          className="bg-purple-600 transition-all duration-500"
+                          style={{ width: `${(stats.dinner / stats.total) * 100}%` }}
+                          title={`Dinner: ${stats.dinner}`}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {/* Breakfast */}
+                    <div className="p-2.5 rounded-xl border border-amber-100 bg-amber-50/30">
+                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1.5">
+                        <span className="text-amber-800 flex items-center gap-1.5">
+                          <span>🍳</span> Breakfast
+                        </span>
+                        <span className="text-slate-900 font-extrabold">
+                          {stats.breakfast} <span className="text-slate-500 font-normal">({stats.total > 0 ? Math.round((stats.breakfast / stats.total) * 100) : 0}%)</span>
                         </span>
                       </div>
-                      <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-amber-100/70 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-amber-500 rounded-full transition-all duration-500"
                           style={{
@@ -243,14 +289,16 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
                     </div>
 
                     {/* Lunch */}
-                    <div>
-                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1">
-                        <span className="text-blue-800">🥗 Lunch</span>
-                        <span className="text-slate-800">
-                          {stats.lunch} ({stats.total > 0 ? Math.round((stats.lunch / stats.total) * 100) : 0}%)
+                    <div className="p-2.5 rounded-xl border border-blue-100 bg-blue-50/30">
+                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1.5">
+                        <span className="text-blue-800 flex items-center gap-1.5">
+                          <span>🥗</span> Lunch
+                        </span>
+                        <span className="text-slate-900 font-extrabold">
+                          {stats.lunch} <span className="text-slate-500 font-normal">({stats.total > 0 ? Math.round((stats.lunch / stats.total) * 100) : 0}%)</span>
                         </span>
                       </div>
-                      <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-blue-100/70 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-blue-600 rounded-full transition-all duration-500"
                           style={{
@@ -261,14 +309,16 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
                     </div>
 
                     {/* Dinner */}
-                    <div>
-                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1">
-                        <span className="text-purple-800">🍲 Dinner</span>
-                        <span className="text-slate-800">
-                          {stats.dinner} ({stats.total > 0 ? Math.round((stats.dinner / stats.total) * 100) : 0}%)
+                    <div className="p-2.5 rounded-xl border border-purple-100 bg-purple-50/30">
+                      <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-1.5">
+                        <span className="text-purple-800 flex items-center gap-1.5">
+                          <span>🍲</span> Dinner
+                        </span>
+                        <span className="text-slate-900 font-extrabold">
+                          {stats.dinner} <span className="text-slate-500 font-normal">({stats.total > 0 ? Math.round((stats.dinner / stats.total) * 100) : 0}%)</span>
                         </span>
                       </div>
-                      <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-purple-100/70 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-purple-600 rounded-full transition-all duration-500"
                           style={{
@@ -280,36 +330,65 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Location Breakdown Card */}
-                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-5 sm:p-6 shadow-xs">
-                  <h4 className="text-base font-extrabold text-slate-900 mb-4">
-                    Headcount Savings by Location
-                  </h4>
+                {/* Location Leaderboard Card */}
+                <div className="bg-white rounded-2xl border-2 border-slate-200/90 p-4 sm:p-5 shadow-xs">
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div>
+                      <h4 className="text-sm sm:text-base font-extrabold text-slate-900">
+                        Headcount Savings by Location
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Catering reduction ranked across facilities
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      {Object.keys(stats.locationMap).length} Facilities
+                    </span>
+                  </div>
 
                   {Object.keys(stats.locationMap).length === 0 ? (
-                    <p className="text-xs text-slate-400">No location data available yet.</p>
+                    <div className="py-8 text-center text-slate-400 text-xs">
+                      No location data available yet.
+                    </div>
                   ) : (
-                    <div className="space-y-3.5">
-                      {Object.keys(stats.locationMap).map((loc) => {
-                        const count = stats.locationMap[loc];
-                        const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-                        return (
-                          <div key={loc}>
-                            <div className="flex items-center justify-between text-xs sm:text-sm font-semibold mb-1">
-                              <span className="text-slate-800">{loc}</span>
-                              <span className="text-slate-600 font-bold">
-                                {count} ({pct}%)
-                              </span>
+                    <div className="space-y-2.5">
+                      {Object.keys(stats.locationMap)
+                        .sort((a, b) => (stats.locationMap[b] || 0) - (stats.locationMap[a] || 0))
+                        .map((loc, index) => {
+                          const count = stats.locationMap[loc] || 0;
+                          const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+                          return (
+                            <div key={loc} className="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/40">
+                              <div className="flex items-center justify-between text-xs sm:text-sm font-semibold mb-1.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className={`w-5 h-5 rounded-md flex items-center justify-center text-[10.5px] font-black shrink-0 ${
+                                      index === 0
+                                        ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                        : index === 1
+                                        ? "bg-slate-200 text-slate-800 border border-slate-300"
+                                        : index === 2
+                                        ? "bg-orange-100 text-orange-900 border border-orange-300"
+                                        : "bg-slate-100 text-slate-600 border border-slate-200"
+                                    }`}
+                                  >
+                                    #{index + 1}
+                                  </span>
+                                  <span className="text-slate-900 font-bold truncate">{loc}</span>
+                                </div>
+                                <span className="text-slate-700 font-black text-xs shrink-0">
+                                  {count} <span className="text-slate-500 font-normal">({pct}%)</span>
+                                </span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-200/60 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
                             </div>
-                            <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
                     </div>
                   )}
                 </div>

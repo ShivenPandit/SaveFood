@@ -16,6 +16,7 @@ export interface IMyMealOptOutsProps {
   currentUserEmail: string;
   onNavigateCreate: () => void;
   onBack: () => void;
+  onShowToast?: (message: string, type: "success" | "error" | "info") => void;
 }
 
 export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
@@ -26,6 +27,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   currentUserEmail,
   onNavigateCreate,
   onBack,
+  onShowToast,
 }) => {
   const cachedInitial = React.useMemo(() => {
     return MealRequestService.getCachedMyMealOptOuts(currentUserId) || [];
@@ -34,11 +36,19 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
   const [requests, setRequests] = React.useState<IMealOptOutRequestItem[]>(cachedInitial);
   const [isLoading, setIsLoading] = React.useState<boolean>(cachedInitial.length === 0);
   const [cancellingId, setCancellingId] = React.useState<number | null>(null);
-  const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Filter State
   const [selectedMealFilter, setSelectedMealFilter] = React.useState<"ALL" | MealType>("ALL");
   const [searchLocation, setSearchLocation] = React.useState<string>("");
+
+  // Real-time 30-second tick to continuously evaluate meal cut-off deadlines
+  const [, setTick] = React.useState<number>(0);
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const loadMyRequests = React.useCallback(async (silent: boolean = false) => {
     if (!silent) {
@@ -64,6 +74,15 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
 
   // Handle Cancellation of an opt-out before deadline
   const handleCancel = async (item: IMealOptOutRequestItem): Promise<void> => {
+    // Immediate pre-check against exact IST cut-off schedule
+    const preCheck = validateMealCutOff(item.MealDate, item.MealType);
+    if (!preCheck.isValid) {
+      if (onShowToast) {
+        onShowToast(preCheck.errorMessage || "Cannot retract opt-out. Cut-off time has passed.", "error");
+      }
+      return;
+    }
+
     const mealDateFormatted = item.MealDate ? item.MealDate.split("T")[0] : "";
     const confirmCancel = window.confirm(
       `Are you sure you want to retract your opt-out for ${item.MealType} on ${mealDateFormatted}?`
@@ -71,24 +90,21 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
     if (!confirmCancel) return;
 
     setCancellingId(item.Id);
-    setFeedback(null);
 
     const result = await MealRequestService.cancelOptOut(spHttpClient, siteUrl, item, context);
     setCancellingId(null);
 
     if (result.success) {
-      setFeedback({
-        type: "success",
-        message: `Opt-out for ${item.MealType} on ${mealDateFormatted} successfully retracted.`,
-      });
+      if (onShowToast) {
+        onShowToast(`Opt-out for ${item.MealType} on ${mealDateFormatted} successfully retracted.`, "success");
+      }
       loadMyRequests().catch((err: Error) => {
         console.error(err);
       });
     } else {
-      setFeedback({
-        type: "error",
-        message: result.error || "Failed to retract opt-out.",
-      });
+      if (onShowToast) {
+        onShowToast(result.error || "Failed to retract opt-out.", "error");
+      }
     }
   };
 
@@ -149,26 +165,6 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
           <span>New Meal Opt-Out</span>
         </button>
       </div>
-
-      {/* Feedback Banner */}
-      {feedback && (
-        <div
-          className={`mb-2.5 p-3 rounded-xl border flex items-center justify-between text-xs sm:text-sm font-medium ${
-            feedback.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-rose-50 border-rose-200 text-rose-800"
-          }`}
-        >
-          <span>{feedback.message}</span>
-          <button
-            type="button"
-            onClick={() => setFeedback(null)}
-            className="text-slate-400 hover:text-slate-600 font-bold ml-2 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Filter and Search Bar Card */}
       <div
@@ -298,7 +294,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                         })
                       : "—";
 
-                    const cutOffCheck = validateMealCutOff(mealDateObj, item.MealType);
+                    const cutOffCheck = validateMealCutOff(item.MealDate, item.MealType);
                     const canCancel = cutOffCheck.isValid;
 
                     return (
@@ -333,7 +329,14 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                               Active (Modifiable)
                             </span>
                           ) : (
-                            <span className="inline-flex items-center text-[10.5px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <span
+                              title={cutOffCheck.errorMessage || "Past cut-off window"}
+                              className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-slate-500 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-full"
+                            >
+                              <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
                               Locked (Passed)
                             </span>
                           )}
@@ -344,12 +347,41 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                               type="button"
                               onClick={() => handleCancel(item)}
                               disabled={cancellingId === item.Id}
-                              className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer disabled:opacity-50"
+                              title="Retract Meal Opt-Out"
+                              aria-label="Retract Meal Opt-Out"
+                              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-rose-200 bg-rose-50/70 text-rose-600 hover:text-white hover:bg-rose-600 hover:border-rose-600 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                             >
-                              {cancellingId === item.Id ? "Cancelling..." : "Retract Opt-Out"}
+                              {cancellingId === item.Id ? (
+                                <div className="w-3.5 h-3.5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="w-4 h-4 fill-none stroke-current"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <polyline points="1 4 1 10 7 10" />
+                                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                </svg>
+                              )}
                             </button>
                           ) : (
-                            <span className="text-xs text-slate-400 font-normal">Past Cut-off</span>
+                            <div
+                              title={cutOffCheck.errorMessage || "Past Cut-Off Window (Retraction Locked)"}
+                              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-slate-200/60 bg-slate-100/70 text-slate-400 cursor-not-allowed"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="w-3.5 h-3.5 fill-none stroke-current"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -380,7 +412,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                     })
                   : "—";
 
-                const cutOffCheck = validateMealCutOff(mealDateObj, item.MealType);
+                const cutOffCheck = validateMealCutOff(item.MealDate, item.MealType);
                 const canCancel = cutOffCheck.isValid;
 
                 return (
@@ -423,21 +455,61 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                             Active
                           </span>
                         ) : (
-                          <span className="inline-flex items-center text-[10.5px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                            Passed
+                          <span
+                            title={cutOffCheck.errorMessage || "Past cut-off window"}
+                            className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-slate-500 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-full"
+                          >
+                            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            Locked (Passed)
                           </span>
                         )}
                       </div>
 
-                      {canCancel && (
+                      {canCancel ? (
                         <button
                           type="button"
                           onClick={() => handleCancel(item)}
                           disabled={cancellingId === item.Id}
-                          className="min-h-[38px] px-3 inline-flex items-center text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          title="Retract Meal Opt-Out"
+                          aria-label="Retract Meal Opt-Out"
+                          className="h-8 px-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                         >
-                          {cancellingId === item.Id ? "Cancelling..." : "Retract Opt-Out"}
+                          {cancellingId === item.Id ? (
+                            <div className="w-3.5 h-3.5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="w-3.5 h-3.5 fill-none stroke-current"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="1 4 1 10 7 10" />
+                              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                            </svg>
+                          )}
+                          <span>Retract</span>
                         </button>
+                      ) : (
+                        <div
+                          title={cutOffCheck.errorMessage || "Past Cut-Off Window (Retraction Locked)"}
+                          className="h-8 px-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-100 border border-slate-200/60 rounded-lg cursor-not-allowed"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="w-3.5 h-3.5 fill-none stroke-current"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          <span>Locked</span>
+                        </div>
                       )}
                     </div>
                   </div>

@@ -19,7 +19,7 @@ export interface ICreateMealOptOutProps {
   currentUserId: number;
   currentUserName: string;
   currentUserEmail: string;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   onCancel: () => void;
 }
 
@@ -47,7 +47,6 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [serverError, setServerError] = React.useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
   // Field Touched / Submit Attempt tracking for inline validation
   const [touched, setTouched] = React.useState<{
@@ -88,8 +87,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
       return;
     }
 
-    const dateObj = new Date(selectedDate);
-    const result = validateMealCutOff(dateObj, selectedMealType);
+    const result = validateMealCutOff(selectedDate, selectedMealType);
 
     if (!result.isValid) {
       setValidationError(result.errorMessage || "Submission closed for this meal.");
@@ -106,9 +104,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
   // Compute current cut-off display info for the selected meal type and date
   const cutOffDisplay = React.useMemo(() => {
     if (!selectedDate || !selectedMealType) return null;
-    const parts = selectedDate.split("-");
-    const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    const cutOff = getCutOffDateTimeIST(dateObj, selectedMealType);
+    const cutOff = getCutOffDateTimeIST(selectedDate, selectedMealType);
     return {
       deadline: cutOff.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }),
       date: cutOff.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
@@ -162,10 +158,9 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
     setIsSubmitting(false);
 
     if (result.success) {
-      setSuccessMessage(`Opt-out request submitted successfully for ${selectedMealType} on ${selectedDate}.`);
-      setTimeout(() => {
-        onSuccess();
-      }, 1500);
+      // Immediately transition to My Requests and display modern floating toast on destination screen
+      const successMsg = `Opt-out submitted successfully for ${selectedMealType} on ${selectedDate}.`;
+      onSuccess(successMsg);
     } else {
       setServerError(result.error || "Failed to submit request. Please try again.");
     }
@@ -191,17 +186,6 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
         style={{ height: "auto", flex: "0 0 auto" }}
         className="w-full bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm p-6"
       >
-        {/* Success Alert */}
-        {successMessage && (
-          <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2.5 text-emerald-800 text-xs sm:text-sm font-medium">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            <span>{successMessage}</span>
-          </div>
-        )}
-
         {/* Server Error Alert */}
         {serverError && (
           <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-rose-800 text-xs sm:text-sm font-medium">

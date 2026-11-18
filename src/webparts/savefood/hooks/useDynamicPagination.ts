@@ -45,16 +45,21 @@ export const calculateOptimalPageSize = (
   // - Table container card borders: 4px
   // - Table thead: ~36px
   // - DataTablePagination footer: ~44px
-  // - Safety margin to guarantee zero vertical window scrollbar: ~28px
-  // Total overhead: ~340px for my-requests, ~380px for all-requests.
-  const overhead = viewType === "all-requests" ? 380 : 340;
+  // - Safety margin to guarantee zero vertical window scrollbar: ~40px
+  // Total overhead: 380px for optimal bottom clearance on laptop screens.
+  const overhead = 380;
   const rowHeight = 42; // Compact, clean table row height
 
   const availableRowSpace = Math.max(0, h - overhead);
-  const rows = Math.floor(availableRowSpace / rowHeight);
+  let rows = Math.floor(availableRowSpace / rowHeight);
+
+  // On standard laptop screens (h <= 780px), cap my-requests at 8 rows so the pagination footer is never cut off
+  if (viewType === "my-requests" && h <= 780) {
+    rows = Math.min(8, Math.max(5, rows));
+  }
 
   // Clamped ranges:
-  // On compact laptop (h ≈ 620px-700px): 6–7 rows (5–6 for all-requests)
+  // On compact laptop (h ≈ 620px-700px): 6–8 rows
   // On standard 1080p (h ≈ 750px-950px): 10–14 rows
   // On 2K QHD (h ≈ 1000px-1400px): 18–24 rows
   // On 4K UHD (h ≥ 1400px): 28–36 rows

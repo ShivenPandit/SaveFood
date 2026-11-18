@@ -12,6 +12,7 @@ import { CreateMealOptOut } from "./CreateRequest/CreateMealOptOut";
 import { MyMealOptOuts } from "./MyRequests/MyMealOptOuts";
 import { ReportsDashboard } from "./Reports/ReportsDashboard";
 import { UserManual } from "./UserManual/UserManual";
+import { Toast } from "./Common/Toast";
 
 export type ActiveView =
   | "home"
@@ -50,6 +51,12 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
 
   // Active View Navigation State (synced with browser URL hash)
   const [currentView, setCurrentView] = React.useState<ActiveView>(getViewFromHash);
+
+  // Modern Floating Toast Notification State
+  const [toast, setToast] = React.useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   // Role Resolution State (Default: Employee)
   const [isAdmin, setIsAdmin] = React.useState<boolean>(false);
@@ -512,7 +519,12 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             currentUserId={props.newcurrentUserId}
             currentUserName={props.newcurrentUserName}
             currentUserEmail={props.newcurrentUserEmail}
-            onSuccess={() => handleNavigate("my-requests")}
+            onSuccess={(msg) => {
+              if (msg) {
+                setToast({ message: msg, type: "success" });
+              }
+              handleNavigate("my-requests");
+            }}
             onCancel={() => handleNavigate("home")}
           />
         </main>
@@ -531,6 +543,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             currentUserEmail={props.newcurrentUserEmail}
             onNavigateCreate={() => handleNavigate("create")}
             onBack={() => handleNavigate("home")}
+            onShowToast={(message, type) => setToast({ message, type })}
           />
         </main>
       )}
@@ -599,6 +612,15 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
             </div>
           </div>
         </footer>
+      )}
+
+      {/* Modern Floating Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

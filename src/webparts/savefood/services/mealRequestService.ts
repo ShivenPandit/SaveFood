@@ -336,8 +336,7 @@ export class MealRequestService {
     payload: ICreateMealOptOutPayload
   ): Promise<{ success: boolean; item?: IMealOptOutRequestItem; error?: string }> {
     // PRE-WRITE GUARD (Barrier 2): Server/data-write revalidation immediately before saving
-    const mealDateObj = new Date(payload.MealDate);
-    const cutOffCheck = validateMealCutOff(mealDateObj, payload.MealType);
+    const cutOffCheck = validateMealCutOff(payload.MealDate, payload.MealType);
 
     if (!cutOffCheck.isValid) {
       return {
@@ -662,13 +661,12 @@ export class MealRequestService {
     context: WebPartContext
   ): Promise<{ success: boolean; error?: string }> {
     // Check cut-off before permitting cancellation
-    const mealDateObj = new Date(item.MealDate);
-    const cutOffCheck = validateMealCutOff(mealDateObj, item.MealType);
+    const cutOffCheck = validateMealCutOff(item.MealDate, item.MealType);
 
     if (!cutOffCheck.isValid) {
       return {
         success: false,
-        error: `Cannot cancel opt-out. Cut-off time for this meal has already passed.`,
+        error: cutOffCheck.errorMessage || `Cannot cancel opt-out. Cut-off time for this meal has already passed.`,
       };
     }
 
