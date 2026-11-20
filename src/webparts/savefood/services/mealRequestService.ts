@@ -6,7 +6,7 @@ import {
   ICreateMealOptOutPayload,
   MealType,
 } from "../models/IMealOptOut";
-import { validateMealCutOff } from "./cutOffService";
+import { validateMealCutOff, validateRetractionCutOff } from "./cutOffService";
 
 export interface IPagedResult<T> {
   items: T[];
@@ -660,8 +660,8 @@ export class MealRequestService {
     item: IMealOptOutRequestItem,
     context: WebPartContext
   ): Promise<{ success: boolean; error?: string }> {
-    // Check cut-off before permitting cancellation
-    const cutOffCheck = validateMealCutOff(item.MealDate, item.MealType);
+    // Check retraction cut-off (10 min buffer) before permitting cancellation
+    const cutOffCheck = validateRetractionCutOff(item.MealDate, item.MealType);
 
     if (!cutOffCheck.isValid) {
       return {

@@ -8,7 +8,8 @@ export interface ICutOffValidationResult {
 }
 
 /**
- * Cut-off schedule specification (India Standard Time):
+ * Submission Cut-off schedule specification (India Standard Time):
+ * Employees can submit meal opt-outs until this deadline:
  * - Breakfast: 08:00 PM (20:00) on the calendar day before MealDate
  * - Lunch: 10:00 AM (10:00) on MealDate
  * - Dinner: 06:00 PM (18:00) on MealDate
@@ -31,6 +32,35 @@ export const CUT_OFF_RULES: Record<MealType, { hour: number; minute: number; day
     minute: 0,
     daysBefore: 0,
     description: "06:00 PM (Same Day)",
+  },
+};
+
+/**
+ * Retraction & Status Lock schedule specification (India Standard Time):
+ * Opt-out requests lock (status = "Locked (Passed)" and retraction disabled)
+ * exactly 10 minutes before the creation deadline / email dispatch:
+ * - Breakfast: 07:50 PM (19:50) on the calendar day before MealDate
+ * - Lunch: 09:50 AM (09:50) on MealDate
+ * - Dinner: 05:50 PM (17:50) on MealDate
+ */
+export const RETRACTION_LOCK_RULES: Record<MealType, { hour: number; minute: number; daysBefore: number; description: string }> = {
+  Breakfast: {
+    hour: 19,
+    minute: 50,
+    daysBefore: 1,
+    description: "07:50 PM (Prev Day)",
+  },
+  Lunch: {
+    hour: 9,
+    minute: 50,
+    daysBefore: 0,
+    description: "09:50 AM (Same Day)",
+  },
+  Dinner: {
+    hour: 17,
+    minute: 50,
+    daysBefore: 0,
+    description: "05:50 PM (Same Day)",
   },
 };
 
@@ -169,8 +199,15 @@ export function getCutOffDateTimeIST(mealDate: Date | string, mealType: MealType
 }
 
 /**
+ * Buffer in milliseconds before the cut-off deadline when new submissions close.
+ * 30 seconds buffer prevents race conditions with top-of-the-hour email dispatch / scheduled tasks.
+ */
+export const SUBMISSION_CUTOFF_BUFFER_MS = 30 * 1000;
+
+/**
  * Double-barrier validation for Meal Opt-Out cut-offs:
- * Checks whether selected date is in the past and whether current local IST time has passed the deadline.
+ * Checks whether selected date is in the past and whether current local IST time has passed the deadline
+ * (stops 30 seconds before cut-off to avoid race conditions with report dispatches).
  */
 export function validateMealCutOff(
   selectedMealDate: Date | string,
@@ -203,10 +240,97 @@ export function validateMealCutOff(
     };
   }
 
-  // 2. Compute cut-off deadline in IST
+  // 2. Compute cut-off deadline in IST and apply 30-second pre-cutoff guard
   const cutOff = getCutOffDateTimeIST(selectedMealDate, mealType);
+  const effectiveDeadlineMs = cutOff.getTime() - SUBMISSION_CUTOFF_BUFFER_MS;
 
-  // 3. Evaluate boundary condition: reject when current time >= cut-off
+  // 3. Evaluate boundary condition: reject when current time >= cut-off minus 30 seconds
+  if (currentIST.getTime() >= effectiveDeadlineMs) {
+    const formattedCutOffTime = cutOff.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const formattedCutOffDate = cutOff.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const formattedMealDate = mealDateMidnightIST.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+    });
+
+    return {
+      isValid: false,
+      cutOffDateTimeIST: cutOff,
+      currentDateTimeIST: currentIST,
+      errorMessage: `Cut-off passed. Submissions for ${mealType} on ${formattedMealDate} closed on ${formattedCutOffDate} at ${formattedCutOffTime} IST (submissions close 30s before cut-off).`,
+    };
+  }
+
+  return {
+    isValid: true,
+    cutOffDateTimeIST: cutOff,
+    currentDateTimeIST: currentIST,
+  };
+}
+
+/**
+ * Computes exact retraction & lock cut-off Date object in IST for a given MealDate and MealType.
+ * Locks 10 minutes before the creation deadline / email dispatch.
+ */
+export function getRetractionCutOffDateTimeIST(mealDate: Date | string, mealType: MealType): Date {
+  const rule = RETRACTION_LOCK_RULES[mealType];
+  const { year, month, day } = parseISTDateParts(mealDate);
+  const cutOff = new Date(year, month, day, rule.hour, rule.minute, 0, 0);
+
+  if (rule.daysBefore > 0) {
+    cutOff.setDate(cutOff.getDate() - rule.daysBefore);
+  }
+  return cutOff;
+}
+
+/**
+ * Double-barrier validation for Meal Opt-Out Retraction & Status Lock:
+ * Evaluates whether an opt-out is still modifiable / retractable.
+ * Locks (returns isValid = false) 10 minutes prior to email dispatch.
+ */
+export function validateRetractionCutOff(
+  selectedMealDate: Date | string,
+  mealType: MealType,
+  currentDate: Date = new Date()
+): ICutOffValidationResult {
+  const currentIST = getCurrentISTDate(currentDate);
+  const { year, month, day } = parseISTDateParts(selectedMealDate);
+
+  // Normalize meal date to midnight IST
+  const mealDateMidnightIST = new Date(year, month, day, 0, 0, 0, 0);
+
+  const todayMidnightIST = new Date(
+    currentIST.getFullYear(),
+    currentIST.getMonth(),
+    currentIST.getDate(),
+    0,
+    0,
+    0,
+    0
+  );
+
+  // 1. Guard against past calendar dates
+  if (mealDateMidnightIST.getTime() < todayMidnightIST.getTime()) {
+    return {
+      isValid: false,
+      cutOffDateTimeIST: todayMidnightIST,
+      currentDateTimeIST: currentIST,
+      errorMessage: "Meal Date has already passed.",
+    };
+  }
+
+  // 2. Compute retraction cut-off deadline in IST (10 mins before cut-off)
+  const cutOff = getRetractionCutOffDateTimeIST(selectedMealDate, mealType);
+
+  // 3. Evaluate boundary condition: reject retraction when current time >= cut-off
   if (currentIST.getTime() >= cutOff.getTime()) {
     const formattedCutOffTime = cutOff.toLocaleTimeString("en-IN", {
       hour: "2-digit",
@@ -227,7 +351,7 @@ export function validateMealCutOff(
       isValid: false,
       cutOffDateTimeIST: cutOff,
       currentDateTimeIST: currentIST,
-      errorMessage: `Cut-off passed. Retraction for ${mealType} on ${formattedMealDate} closed on ${formattedCutOffDate} at ${formattedCutOffTime} IST.`,
+      errorMessage: `Retraction closed. Retraction for ${mealType} on ${formattedMealDate} closed on ${formattedCutOffDate} at ${formattedCutOffTime} IST (10 minutes before meal cut-off).`,
     };
   }
 

@@ -3,7 +3,7 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPHttpClient } from "@microsoft/sp-http";
 import { IMealOptOutRequestItem, MealType } from "../../models/IMealOptOut";
 import { MealRequestService } from "../../services/mealRequestService";
-import { validateMealCutOff } from "../../services/cutOffService";
+import { validateRetractionCutOff } from "../../services/cutOffService";
 import { BackButton } from "../Common/BackButton";
 import { useDynamicPagination } from "../../hooks/useDynamicPagination";
 import { DataTablePagination } from "../Common/DataTablePagination";
@@ -131,8 +131,8 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
 
   // Handle Cancellation of an opt-out before deadline
   const handleCancel = async (item: IMealOptOutRequestItem): Promise<void> => {
-    // Immediate pre-check against exact IST cut-off schedule
-    const preCheck = validateMealCutOff(item.MealDate, item.MealType);
+    // Immediate pre-check against exact IST cut-off schedule (10 mins buffer)
+    const preCheck = validateRetractionCutOff(item.MealDate, item.MealType);
     if (!preCheck.isValid) {
       if (onShowToast) {
         onShowToast(preCheck.errorMessage || "Cannot retract opt-out. Cut-off time has passed.", "error");
@@ -191,7 +191,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
       // 4. Cut-Off Status Filter
       let matchStatus = true;
       if (filterStatus !== "ALL") {
-        const cutOffCheck = validateMealCutOff(req.MealDate, req.MealType);
+        const cutOffCheck = validateRetractionCutOff(req.MealDate, req.MealType);
         const isActive = cutOffCheck.isValid;
         if (filterStatus === "ACTIVE" && !isActive) {
           matchStatus = false;
@@ -544,7 +544,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                         })
                       : "—";
 
-                    const cutOffCheck = validateMealCutOff(item.MealDate, item.MealType);
+                    const cutOffCheck = validateRetractionCutOff(item.MealDate, item.MealType);
                     const canCancel = cutOffCheck.isValid;
 
                     return (
@@ -662,7 +662,7 @@ export const MyMealOptOuts: React.FC<IMyMealOptOutsProps> = ({
                     })
                   : "—";
 
-                const cutOffCheck = validateMealCutOff(item.MealDate, item.MealType);
+                const cutOffCheck = validateRetractionCutOff(item.MealDate, item.MealType);
                 const canCancel = cutOffCheck.isValid;
 
                 return (

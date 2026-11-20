@@ -8,11 +8,16 @@ This guide provides end-to-end instructions for creating automated cloud flows i
 
 The system enforces three daily operational meal cut-offs. The flow triggers automatically at each cut-off deadline:
 
-| Trigger Time (IST) | Meal Shift | Target Meal Date | Description |
-|---|---|---|---|
-| **10:00 AM IST** | **Lunch** | **Today** | Final headcount reduction for Today's Lunch. |
-| **06:00 PM IST** (18:00) | **Dinner** | **Today** | Final headcount reduction for Today's Dinner. |
-| **08:00 PM IST** (20:00) | **Breakfast** | **Tomorrow** *(Next Day)* | Advance cut-off for Tomorrow's Breakfast (previous day rule). |
+| Trigger Time (IST) | Meal Shift | Target Meal Date | Retraction Lock Time (IST) | Submission Cut-Off | Description |
+|---|---|---|---|---|---|
+| **10:00 AM IST** | **Lunch** | **Today** | **09:50 AM** *(Locks retraction)* | **09:59:30 AM** *(Stops 30s before 10:00)* | Final headcount reduction for Today's Lunch. |
+| **06:00 PM IST** (18:00) | **Dinner** | **Today** | **05:50 PM** *(Locks retraction)* | **05:59:30 PM** *(Stops 30s before 18:00)* | Final headcount reduction for Today's Dinner. |
+| **08:00 PM IST** (20:00) | **Breakfast** | **Tomorrow** *(Next Day)* | **07:50 PM** *(Locks retraction)* | **07:59:30 PM** *(Stops 30s before 20:00)* | Advance cut-off for Tomorrow's Breakfast (previous day rule). |
+
+> [!NOTE]
+> **Operational Buffers**:
+> 1. **10-Minute Retraction Lock**: Retraction locks **10 minutes before** cut-off (09:50 AM, 05:50 PM, 07:50 PM) so users cannot cancel opt-outs during email compilation.
+> 2. **30-Second Submission Cut-Off**: New opt-out submissions stop **30 seconds before** the top of the hour (09:59:30 AM, 05:59:30 PM, 07:59:30 PM). This completely prevents last-second submissions from racing against the scheduled Power Automate query.
 
 ---
 
