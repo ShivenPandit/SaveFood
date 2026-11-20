@@ -3,6 +3,7 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPHttpClient } from "@microsoft/sp-http";
 import { IMealOptOutRequestItem } from "../../models/IMealOptOut";
 import { MealRequestService } from "../../services/mealRequestService";
+import { exportMealOptOutsToExcel } from "../../services/excelExportService";
 import { BackButton } from "../Common/BackButton";
 import { AllMealOptOuts } from "../AllRequests/AllMealOptOuts";
 
@@ -30,6 +31,25 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
   const [activeTab, setActiveTab] = React.useState<ReportTab>(initialTab);
   const [data, setData] = React.useState<IMealOptOutRequestItem[]>(cachedInitial);
   const [isLoading, setIsLoading] = React.useState<boolean>(cachedInitial.length === 0);
+
+  // Filtered requests state communicated from AllMealOptOuts
+  const [filteredRequestsData, setFilteredRequestsData] = React.useState<IMealOptOutRequestItem[] | null>(null);
+  const [hasActiveFilters, setHasActiveFilters] = React.useState<boolean>(false);
+
+  // The dataset to export: if on requests tab and filtered data exists, use it; otherwise full data
+  const exportItems = React.useMemo(() => {
+    if (activeTab === "requests" && filteredRequestsData !== null) {
+      return filteredRequestsData;
+    }
+    return data;
+  }, [activeTab, filteredRequestsData, data]);
+
+  const isFilteredExport = activeTab === "requests" && hasActiveFilters;
+
+  const handleExportToExcel = React.useCallback(() => {
+    if (exportItems.length === 0) return;
+    exportMealOptOutsToExcel(exportItems, isFilteredExport);
+  }, [exportItems, isFilteredExport]);
 
   // Load all opt-outs for analytics
   React.useEffect(() => {
@@ -90,61 +110,103 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
 
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
-      {/* Top Header Row: BackButton on Left, Switcher Tabs on Right */}
+      {/* Top Header Row: BackButton on Left, Export to Excel & Switcher Tabs on Right */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 mb-2">
         <BackButton onClick={onBack} />
 
-        {/* Modern Segmented Control Pill Tabs */}
-        <div className="inline-flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/90 shadow-2xs self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+          {/* Export to Excel CTA Button */}
           <button
             type="button"
-            onClick={() => setActiveTab("dashboard")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13.5px] sm:text-[14px] font-bold transition-all duration-150 cursor-pointer select-none whitespace-nowrap ${
-              activeTab === "dashboard"
-                ? "bg-[#004B87] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+            onClick={handleExportToExcel}
+            disabled={exportItems.length === 0 || isLoading}
+            title={
+              exportItems.length === 0
+                ? "No records available to export"
+                : isFilteredExport
+                ? `Export ${exportItems.length} filtered records to Excel`
+                : `Export all ${exportItems.length} records to Excel`
+            }
+            className={`h-[38px] sm:h-[40px] px-3 sm:px-3.5 rounded-xl border inline-flex items-center gap-2 text-[13px] sm:text-[13.5px] font-bold transition-all duration-150 select-none shadow-2xs whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+              isFilteredExport
+                ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100/80 hover:border-emerald-400"
+                : "bg-white border-slate-300 text-slate-700 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800"
             }`}
           >
+            {/* Emerald Excel Document Icon */}
             <svg
               viewBox="0 0 24 24"
-              className="w-4 h-4 shrink-0 fill-none stroke-current"
+              className="w-4 h-4 shrink-0 text-emerald-600 fill-none stroke-current"
               strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <rect x="3" y="3" width="7" height="9" rx="1" />
-              <rect x="14" y="3" width="7" height="5" rx="1" />
-              <rect x="14" y="12" width="7" height="9" rx="1" />
-              <rect x="3" y="16" width="7" height="5" rx="1" />
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
             </svg>
-            <span>Report Dashboard</span>
+            <span>Export to Excel</span>
+            {isFilteredExport && (
+              <span className="bg-emerald-600 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                {exportItems.length}
+              </span>
+            )}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("requests")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13.5px] sm:text-[14px] font-bold transition-all duration-150 cursor-pointer select-none whitespace-nowrap ${
-              activeTab === "requests"
-                ? "bg-[#004B87] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-            }`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4 shrink-0 fill-none stroke-current"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {/* Modern Segmented Control Pill Tabs */}
+          <div className="inline-flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/90 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab("dashboard")}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13.5px] sm:text-[14px] font-bold transition-all duration-150 cursor-pointer select-none whitespace-nowrap ${
+                activeTab === "dashboard"
+                  ? "bg-[#004B87] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              }`}
             >
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
-            </svg>
-            <span>All Meal Opt-Out Requests</span>
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                className="w-4 h-4 shrink-0 fill-none stroke-current"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="7" height="9" rx="1" />
+                <rect x="14" y="3" width="7" height="5" rx="1" />
+                <rect x="14" y="12" width="7" height="9" rx="1" />
+                <rect x="3" y="16" width="7" height="5" rx="1" />
+              </svg>
+              <span>Report Dashboard</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("requests")}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13.5px] sm:text-[14px] font-bold transition-all duration-150 cursor-pointer select-none whitespace-nowrap ${
+                activeTab === "requests"
+                  ? "bg-[#004B87] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="w-4 h-4 shrink-0 fill-none stroke-current"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+              <span>All Meal Opt-Out Requests</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -156,6 +218,10 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
           siteUrl={siteUrl}
           onBack={onBack}
           hideBackButton={true}
+          onFilteredDataChange={(filteredItems, hasFilters) => {
+            setFilteredRequestsData(filteredItems);
+            setHasActiveFilters(hasFilters);
+          }}
         />
       )}
 

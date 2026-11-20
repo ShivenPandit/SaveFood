@@ -16,6 +16,7 @@ export interface IAllMealOptOutsProps {
   siteUrl: string;
   onBack: () => void;
   hideBackButton?: boolean;
+  onFilteredDataChange?: (filteredItems: IMealOptOutRequestItem[], hasActiveFilters: boolean) => void;
 }
 
 export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
@@ -24,6 +25,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   siteUrl,
   onBack,
   hideBackButton = false,
+  onFilteredDataChange,
 }) => {
   const cachedInitial = React.useMemo(() => {
     return MealRequestService.getCachedAllMealOptOuts() || [];
@@ -241,6 +243,13 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   React.useEffect(() => {
     setCurrentPage(1);
   }, [startDate, endDate, filterLocationId, selectedRequesters, setCurrentPage]);
+
+  // Notify parent component of current filtered dataset and active filter status
+  React.useEffect(() => {
+    if (onFilteredDataChange) {
+      onFilteredDataChange(filteredRequests, activeFilterCount > 0);
+    }
+  }, [filteredRequests, activeFilterCount, onFilteredDataChange]);
 
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
