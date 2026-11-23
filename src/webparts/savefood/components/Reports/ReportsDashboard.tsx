@@ -1,11 +1,14 @@
 import * as React from "react";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPHttpClient } from "@microsoft/sp-http";
-import { IMealOptOutRequestItem } from "../../models/IMealOptOut";
+import { IMealOptOutRequestItem, MealType } from "../../models/IMealOptOut";
+import { ILocationMasterItem } from "../../models/ILocation";
 import { MealRequestService } from "../../services/mealRequestService";
 import { exportMealOptOutsToExcel } from "../../services/excelExportService";
+import { formatISTDateToISO } from "../../services/cutOffService";
 import { BackButton } from "../Common/BackButton";
 import { AllMealOptOuts } from "../AllRequests/AllMealOptOuts";
+import { AdvancedFilterPopover } from "../Common/AdvancedFilterPopover";
 
 export type ReportTab = "dashboard" | "requests";
 
@@ -30,11 +33,66 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
 
   const [activeTab, setActiveTab] = React.useState<ReportTab>(initialTab);
   const [data, setData] = React.useState<IMealOptOutRequestItem[]>(cachedInitial);
+  const [locations, setLocations] = React.useState<ILocationMasterItem[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(cachedInitial.length === 0);
+
+  const todayISOString = React.useMemo(() => formatISTDateToISO(new Date()), []);
+
+  // Synchronized Filter State (Shared between Dashboard and Requests) - Defaults to Today
+  const [startDate, setStartDate] = React.useState<string | null>(todayISOString);
+  const [endDate, setEndDate] = React.useState<string | null>(todayISOString);
+  const [selectedLocationIds, setSelectedLocationIds] = React.useState<number[]>([]);
+  const [selectedMealTypes, setSelectedMealTypes] = React.useState<MealType[]>([]);
+
+  // Dashboard Filter Popover State
+  const [isDashboardFilterOpen, setIsDashboardFilterOpen] = React.useState<boolean>(false);
+  const dashboardFilterRef = React.useRef<HTMLDivElement>(null);
 
   // Filtered requests state communicated from AllMealOptOuts
   const [filteredRequestsData, setFilteredRequestsData] = React.useState<IMealOptOutRequestItem[] | null>(null);
   const [hasActiveFilters, setHasActiveFilters] = React.useState<boolean>(false);
+
+  // Active filter count for Dashboard
+  const isAllDatesActive = startDate === null && endDate === null;
+  const isLocationFilterActive = selectedLocationIds.length > 0;
+  const isMealTypeFilterActive = selectedMealTypes.length > 0 && selectedMealTypes.length < 3;
+
+  const dashboardActiveFilterCount = React.useMemo(() => {
+    let count = 0;
+    if (!isAllDatesActive) count++;
+    if (isLocationFilterActive) count++;
+    if (isMealTypeFilterActive) count++;
+    return count;
+  }, [isAllDatesActive, isLocationFilterActive, isMealTypeFilterActive]);
+
+  const handleResetFilters = (): void => {
+    setStartDate(null);
+    setEndDate(null);
+    setSelectedLocationIds([]);
+    setSelectedMealTypes([]);
+  };
+
+  // Filter summary text for Dashboard banner
+  const filterSummaryText = React.useMemo(() => {
+    const parts: string[] = [];
+    if (startDate && endDate && startDate === endDate) {
+      parts.push(startDate);
+    } else if (startDate || endDate) {
+      parts.push(`${startDate || "Any"} to ${endDate || "Any"}`);
+    }
+    if (selectedLocationIds.length > 0) {
+      if (selectedLocationIds.length === 1) {
+        const loc = locations.find((l) => l.Id === selectedLocationIds[0]);
+        if (loc) parts.push(loc.Title);
+      } else {
+        parts.push(`${selectedLocationIds.length} Locations`);
+      }
+    }
+    if (selectedMealTypes.length > 0 && selectedMealTypes.length < 3) {
+      parts.push(selectedMealTypes.join(", "));
+    }
+    return parts.join(" • ");
+  }, [startDate, endDate, selectedLocationIds, selectedMealTypes, locations]);
 
   // The dataset to export: if on requests tab and filtered data exists, use it; otherwise full data
   const exportItems = React.useMemo(() => {
@@ -76,18 +134,55 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
     };
   }, [spHttpClient, siteUrl]);
 
-  // Aggregate Metrics
+  // Load locations for multi-select dropdown
+  React.useEffect(() => {
+    MealRequestService.getAllLocations(spHttpClient, siteUrl)
+      .then((locs) => {
+        setLocations(locs);
+      })
+      .catch((err: Error) => {
+        console.error("[ReportsDashboard] Failed to load locations:", err);
+      });
+  }, [spHttpClient, siteUrl]);
+
+  // Dynamic In-Memory Filtering for Report Dashboard Analytics
+  const filteredDashboardData = React.useMemo(() => {
+    const effStart = startDate && endDate && startDate > endDate ? endDate : startDate;
+    const effEnd = startDate && endDate && startDate > endDate ? startDate : endDate;
+
+    return data.filter((d) => {
+      // 1. Date Range
+      const itemDateStr = d.MealDate ? d.MealDate.split("T")[0] : "";
+      if (effStart && itemDateStr < effStart) return false;
+      if (effEnd && itemDateStr > effEnd) return false;
+
+      // 2. Meal Type Multi-Select
+      if (selectedMealTypes.length > 0 && selectedMealTypes.length < 3) {
+        if (selectedMealTypes.indexOf(d.MealType) === -1) return false;
+      }
+
+      // 3. Location Multi-Select
+      if (selectedLocationIds.length > 0) {
+        const itemLocId = d.LocationId || d.Location?.Id;
+        if (!itemLocId || selectedLocationIds.indexOf(itemLocId) === -1) return false;
+      }
+
+      return true;
+    });
+  }, [data, startDate, endDate, selectedLocationIds, selectedMealTypes]);
+
+  // Aggregate Metrics computed from filteredDashboardData
   const stats = React.useMemo(() => {
-    const total = data.length;
+    const total = filteredDashboardData.length;
 
     // Meal type counts
-    const breakfast = data.filter((d) => d.MealType === "Breakfast").length;
-    const lunch = data.filter((d) => d.MealType === "Lunch").length;
-    const dinner = data.filter((d) => d.MealType === "Dinner").length;
+    const breakfast = filteredDashboardData.filter((d) => d.MealType === "Breakfast").length;
+    const lunch = filteredDashboardData.filter((d) => d.MealType === "Lunch").length;
+    const dinner = filteredDashboardData.filter((d) => d.MealType === "Dinner").length;
 
     // Location counts
     const locationMap: Record<string, number> = {};
-    data.forEach((d) => {
+    filteredDashboardData.forEach((d) => {
       const loc = d.Location?.Title || "Unspecified";
       locationMap[loc] = (locationMap[loc] || 0) + 1;
     });
@@ -106,7 +201,7 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
       kgSaved,
       co2AvoidedKg,
     };
-  }, [data]);
+  }, [filteredDashboardData]);
 
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
@@ -115,45 +210,107 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
         <BackButton onClick={onBack} />
 
         <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
-          {/* Export to Excel CTA Button */}
-          <button
-            type="button"
-            onClick={handleExportToExcel}
-            disabled={exportItems.length === 0 || isLoading}
-            title={
-              exportItems.length === 0
-                ? "No records available to export"
-                : isFilteredExport
-                ? `Export ${exportItems.length} filtered records to Excel`
-                : `Export all ${exportItems.length} records to Excel`
-            }
-            className={`h-[38px] sm:h-[40px] px-3 sm:px-3.5 rounded-xl border inline-flex items-center gap-2 text-[13px] sm:text-[13.5px] font-bold transition-all duration-150 select-none shadow-2xs whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-              isFilteredExport
-                ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100/80 hover:border-emerald-400"
-                : "bg-white border-slate-300 text-slate-700 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800"
-            }`}
-          >
-            {/* Emerald Excel Document Icon */}
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4 shrink-0 text-emerald-600 fill-none stroke-current"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {/* Dashboard Tab: Filters CTA Button (Replaces Export to Excel on Dashboard tab) */}
+          {activeTab === "dashboard" && (
+            <div ref={dashboardFilterRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsDashboardFilterOpen((prev) => !prev)}
+                aria-expanded={isDashboardFilterOpen}
+                className={`h-[38px] sm:h-[40px] px-3 sm:px-3.5 rounded-xl border inline-flex items-center gap-2 text-[13px] sm:text-[13.5px] font-bold transition-all duration-150 select-none shadow-2xs whitespace-nowrap cursor-pointer ${
+                  isDashboardFilterOpen || dashboardActiveFilterCount > 0
+                    ? "bg-blue-50/80 border-[#004B87] text-[#004B87] shadow-2xs ring-1 ring-[#004B87]/20"
+                    : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-[#004B87] hover:text-[#004B87]"
+                }`}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-4 h-4 shrink-0 fill-none stroke-current"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                <span>Filters</span>
+                {dashboardActiveFilterCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-[#004B87] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                    {dashboardActiveFilterCount}
+                  </span>
+                )}
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`w-3.5 h-3.5 shrink-0 fill-none stroke-current transition-transform duration-200 ${
+                    isDashboardFilterOpen ? "rotate-180" : ""
+                  }`}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {/* Advanced Filter Criteria Popover for Dashboard */}
+              <AdvancedFilterPopover
+                isOpen={isDashboardFilterOpen}
+                onClose={() => setIsDashboardFilterOpen(false)}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                selectedMealTypes={selectedMealTypes}
+                onMealTypesChange={setSelectedMealTypes}
+                locations={locations}
+                selectedLocationIds={selectedLocationIds}
+                onLocationsChange={setSelectedLocationIds}
+                onResetAll={handleResetFilters}
+                activeFilterCount={dashboardActiveFilterCount}
+              />
+            </div>
+          )}
+
+          {/* Requests Tab: Export to Excel CTA Button */}
+          {activeTab === "requests" && (
+            <button
+              type="button"
+              onClick={handleExportToExcel}
+              disabled={exportItems.length === 0 || isLoading}
+              title={
+                exportItems.length === 0
+                  ? "No records available to export"
+                  : isFilteredExport
+                  ? `Export ${exportItems.length} filtered records to Excel`
+                  : `Export all ${exportItems.length} records to Excel`
+              }
+              className={`h-[38px] sm:h-[40px] px-3 sm:px-3.5 rounded-xl border inline-flex items-center gap-2 text-[13px] sm:text-[13.5px] font-bold transition-all duration-150 select-none shadow-2xs whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                isFilteredExport
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100/80 hover:border-emerald-400"
+                  : "bg-white border-slate-300 text-slate-700 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800"
+              }`}
             >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-            <span>Export to Excel</span>
-            {isFilteredExport && (
-              <span className="bg-emerald-600 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                {exportItems.length}
-              </span>
-            )}
-          </button>
+              {/* Emerald Excel Document Icon */}
+              <svg
+                viewBox="0 0 24 24"
+                className="w-4 h-4 shrink-0 text-emerald-600 fill-none stroke-current"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span>Export to Excel</span>
+              {isFilteredExport && (
+                <span className="bg-emerald-600 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {exportItems.length}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Modern Segmented Control Pill Tabs */}
           <div className="inline-flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/90 shadow-2xs">
@@ -218,6 +375,14 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
           siteUrl={siteUrl}
           onBack={onBack}
           hideBackButton={true}
+          sharedStartDate={startDate}
+          sharedEndDate={endDate}
+          onSharedStartDateChange={setStartDate}
+          onSharedEndDateChange={setEndDate}
+          sharedLocationIds={selectedLocationIds}
+          onSharedLocationIdsChange={setSelectedLocationIds}
+          sharedMealTypes={selectedMealTypes}
+          onSharedMealTypesChange={setSelectedMealTypes}
           onFilteredDataChange={(filteredItems, hasFilters) => {
             setFilteredRequestsData(filteredItems);
             setHasActiveFilters(hasFilters);
@@ -277,6 +442,30 @@ export const ReportsDashboard: React.FC<IReportsDashboardProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Active Filter Indicator Strip (when filters are active on Dashboard) */}
+          {dashboardActiveFilterCount > 0 && (
+            <div className="mb-3 px-3.5 py-2 bg-blue-50/70 border border-blue-200/80 rounded-xl flex items-center justify-between gap-2 flex-wrap animate-in fade-in duration-150">
+              <div className="flex items-center gap-2 text-[13px] text-[#004B87]">
+                <span className="font-bold flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg>
+                  Filtered by ({dashboardActiveFilterCount}):
+                </span>
+                <span className="text-slate-700 font-medium">
+                  {filterSummaryText}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-[12px] font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
 
           {isLoading ? (
             <div

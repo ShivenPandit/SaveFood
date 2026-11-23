@@ -107,7 +107,7 @@ export default class SaveFoodWebPart extends BaseClientSideWebPart<ISaveFoodWebP
       this._enforceFullBleed();
     });
 
-    document.title = "Save Food Management System";
+    document.title = "SaveFood Management System";
     $("body").addClass("ms-backgroundImage");
 
     // 2. Fetch user data before rendering component

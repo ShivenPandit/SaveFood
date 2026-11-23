@@ -1,6 +1,6 @@
 # Power Automate Setup Guide: Automated Daily Meal Cut-Off Summary Emails
 
-This guide provides end-to-end instructions for creating automated cloud flows in **Microsoft Power Automate** that deliver daily meal cut-off notifications to all Administrators in the Vedanta Save Food Management System.
+This guide provides end-to-end instructions for creating automated cloud flows in **Microsoft Power Automate** that deliver daily meal cut-off notifications to all Administrators in the Vedanta SaveFood Management System.
 
 ---
 
@@ -23,7 +23,7 @@ The system enforces three daily operational meal cut-offs. The flow triggers aut
 
 ## 2. Minimal Email Body Design
 
-Per Vedanta Save Food requirements, the email is kept **short, minimal, and executive-friendly**:
+Per Vedanta SaveFood requirements, the email is kept **short, minimal, and executive-friendly**:
 - **Header**: Shift name, icon, and formatted date.
 - **Location-Wise Summary Table**: 2-column table showing each canteen location and its opt-out count.
 - **Total Headcount**: Concluding summary row labeled **`Total Headcount`**.
@@ -33,7 +33,7 @@ Per Vedanta Save Food requirements, the email is kept **short, minimal, and exec
 ### Email Layout Preview:
 ```html
 +-----------------------------------------------------------------+
-|  VEDANTA | Save Food Management System                          |
+|  VEDANTA | SaveFood Management System                         |
 |  🥗 Lunch Opt-Out Summary — Friday, 20 Nov 2026                 |
 +-----------------------------------------------------------------+
 |                                                                 |
@@ -53,7 +53,7 @@ Per Vedanta Save Food requirements, the email is kept **short, minimal, and exec
 |                                                                 |
 |  [ 📊 Open Live Report Dashboard → ]                           |
 |                                                                 |
-|  © Vedanta Resources Ltd. • Save Food Platform                  |
+|  © Vedanta Resources Ltd. • SaveFood Platform                 |
 +-----------------------------------------------------------------+
 ```
 
@@ -288,7 +288,7 @@ Inside the loop:
 After the loop completes, add an action: **Office 365 Outlook** -> **Send an email (V2)**:
 
 - **To**: `@{variables('varAdminEmails')}`
-- **Subject**: `[Save Food] @{variables('varShiftTitle')} — @{variables('varTargetDateFormatted')}`
+- **Subject**: `[SaveFood] @{variables('varShiftTitle')} — @{variables('varTargetDateFormatted')}`
 - **Importance**: `Normal`
 - **Body** (Click the `</>` Code View button to paste HTML):
 
@@ -298,7 +298,7 @@ After the loop completes, add an action: **Office 365 Outlook** -> **Send an ema
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Save Food Notification</title>
+  <title>SaveFood Notification</title>
 </head>
 <body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
   <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #cbd5e1; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
@@ -309,7 +309,7 @@ After the loop completes, add an action: **Office 365 Outlook** -> **Send an ema
         <tr>
           <td>
             <span style="font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #93c5fd;">VEDANTA SUSTAINABILITY PLATFORM</span>
-            <h1 style="margin: 4px 0 0 0; color: #ffffff; font-size: 20px; font-weight: 700; line-height: 1.3;">Save Food Management System</h1>
+            <h1 style="margin: 4px 0 0 0; color: #ffffff; font-size: 20px; font-weight: 700; line-height: 1.3;">SaveFood Management System</h1>
           </td>
         </tr>
       </table>
@@ -352,7 +352,7 @@ After the loop completes, add an action: **Office 365 Outlook** -> **Send an ema
 
     <!-- Minimal Corporate Footer -->
     <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px 24px; text-align: center;">
-      <p style="margin: 0; color: #94a3b8; font-size: 11.5px;">© Vedanta Resources Ltd. • Save Food Management Platform • Automated Cut-Off Dispatch</p>
+      <p style="margin: 0; color: #94a3b8; font-size: 11.5px;">© Vedanta Resources Ltd. • SaveFood Management Platform • Automated Cut-Off Dispatch</p>
     </div>
 
   </div>
@@ -370,19 +370,19 @@ If you prefer separate independent flows for Lunch, Dinner, and Breakfast:
 - **Trigger**: Recurrence daily at `10:00 AM IST` (`Hours: 10, Minutes: 0`).
 - **Meal Type**: Fixed to `Lunch`.
 - **Target Date**: Today (`formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy-MM-dd')`).
-- **Subject**: `[Save Food] 🥗 Lunch Opt-Out Summary — @{outputs('Target_Date')}`
+- **Subject**: `[SaveFood] 🥗 Lunch Opt-Out Summary — @{outputs('Target_Date')}`
 
 ### 2. `SaveFood - Dinner Cut-Off Report`
 - **Trigger**: Recurrence daily at `06:00 PM IST` (`Hours: 18, Minutes: 0`).
 - **Meal Type**: Fixed to `Dinner`.
 - **Target Date**: Today (`formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy-MM-dd')`).
-- **Subject**: `[Save Food] 🍲 Dinner Opt-Out Summary — @{outputs('Target_Date')}`
+- **Subject**: `[SaveFood] 🍲 Dinner Opt-Out Summary — @{outputs('Target_Date')}`
 
 ### 3. `SaveFood - Breakfast Cut-Off Report`
 - **Trigger**: Recurrence daily at `08:00 PM IST` (`Hours: 20, Minutes: 0`).
 - **Meal Type**: Fixed to `Breakfast`.
 - **Target Date**: Tomorrow (`formatDateTime(addDays(convertFromUtc(utcNow(), 'India Standard Time'), 1), 'yyyy-MM-dd')`).
-- **Subject**: `[Save Food] 🍳 Tomorrow's Breakfast Opt-Out Summary — @{outputs('Target_Date')}`
+- **Subject**: `[SaveFood] 🍳 Tomorrow's Breakfast Opt-Out Summary — @{outputs('Target_Date')}`
 
 All other steps (getting admins from `RoleMatrix`, querying locations, building the table, and sending email) remain identical.
 

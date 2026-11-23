@@ -15,7 +15,7 @@ export interface IPagedResult<T> {
 }
 
 /**
- * Service handling all SharePoint List operations for the Save Food system.
+ * Service handling all SharePoint List operations for the SaveFood system.
  */
 export class MealRequestService {
   private static _itemEntityTypeCache: { [listName: string]: string } = {};

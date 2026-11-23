@@ -1,5 +1,5 @@
 /**
- * Vedanta VOGL Save Food Management System
+ * Vedanta VOGL SaveFood Management System
  * Portal Environments & URLs Configuration
  */
 
@@ -13,13 +13,13 @@ export interface IPortalEnvironment {
 export const PORTAL_ENVIRONMENTS: Record<"UAT" | "PRODUCTION", IPortalEnvironment> = {
   UAT: {
     key: "uat",
-    name: "Save Food UAT Portal",
+    name: "SaveFood UAT Portal",
     url: "https://vedanta.sharepoint.com/sites/SaveFoodUAT",
     description: "User Acceptance Testing & Staging Environment",
   },
   PRODUCTION: {
     key: "production",
-    name: "Save Food Production Portal",
+    name: "SaveFood Production Portal",
     url: "https://vedanta.sharepoint.com/sites/SaveFood",
     description: "Live Enterprise Production Environment",
   },

@@ -30,7 +30,7 @@ export const UserManual: React.FC<IUserManualProps> = ({ onBack }) => {
         <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 text-[#004B87] flex items-center justify-center text-3xl mb-3 shadow-2xs">
           📖
         </div>
-        <h3 className="text-lg sm:text-xl font-bold text-slate-800">Save Food Guidelines & Standard Operating Procedures</h3>
+        <h3 className="text-lg sm:text-xl font-bold text-slate-800">SaveFood Guidelines & Standard Operating Procedures</h3>
         <p className="text-[15px] text-[#475569] max-w-lg mx-auto mt-2 leading-relaxed">
           Process documentation, cut-off schedules, and caterer coordination manuals will be published here.
         </p>

@@ -1,4 +1,4 @@
-# VOGL Save Food Management System
+# VOGL SaveFood Management System
 
 <div align="center">
 
@@ -18,7 +18,7 @@ A centralized enterprise digital platform engineered for **Vedanta Limited (VOGL
 
 ## 📌 Executive Overview & Objectives
 
-In large industrial plant operations, unforeseen shifts, official travel, and employee leaves frequently cause food over-preparation and significant cafeteria wastage. The **VOGL Save Food Management System** solves this by establishing an intuitive, advance notice mechanism:
+In large industrial plant operations, unforeseen shifts, official travel, and employee leaves frequently cause food over-preparation and significant cafeteria wastage. The **VOGL SaveFood Management System** solves this by establishing an intuitive, advance notice mechanism:
 
 1. **Advance Headcount Forecasting**: Enables employees to easily opt out of upcoming meals (Breakfast, Lunch, Dinner, Midnight snacks) ahead of scheduled cut-off windows.
 2. **Catering Quantity Optimization**: Provides kitchen managers and catering contractors with real-time, consolidated headcount rosters to prepare the exact quantity of food needed.

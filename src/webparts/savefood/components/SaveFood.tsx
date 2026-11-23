@@ -237,7 +237,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
               onClick={() => handleNavigate("home")}
               className="text-[18px] sm:text-[19px] font-bold text-[#003865] tracking-tight truncate cursor-pointer hover:text-[#004B87] transition-colors"
             >
-              Save Food Management System
+              SaveFood Management System
             </span>
           </div>
         </div>
@@ -333,7 +333,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
                   Vedanta Sustainability Platform
                 </p>
                 <h1 className="font-extrabold text-white tracking-tight leading-tight text-xl sm:text-2xl lg:text-[28px] mt-0.5">
-                  VOGL Save Food{" "}
+                  VOGL SaveFood{" "}
                   <span className="text-emerald-400 font-black whitespace-nowrap">
                     Management System
                   </span>
@@ -572,7 +572,7 @@ const SaveFood: React.FC<ISaveFoodProps> = (props) => {
           className="select-none shrink-0 mt-auto w-full px-4 sm:px-8 py-2.5"
         >
           <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[13px] text-slate-600 font-medium gap-2 sm:gap-0">
-            <span>© Vedanta Resources Ltd. • Save Food Management System</span>
+            <span>© Vedanta Resources Ltd. • SaveFood Management System</span>
             <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end text-[13px]">
               <span className="font-bold text-[#003865]">Cut-Off Timings (IST):</span>
               <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200/90 px-3 py-1 rounded-full font-semibold">

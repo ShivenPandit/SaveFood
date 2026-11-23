@@ -281,7 +281,6 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                     <div
                       key={type}
                       className="relative group w-full"
-                      title={isExpired ? status.message : undefined}
                     >
                       <button
                         type="button"

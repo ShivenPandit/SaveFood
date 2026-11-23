@@ -1,6 +1,6 @@
 # SharePoint Lists & Columns Specification
 
-This document provides the exact list names, internal column names, data types, and configurations for the **Save Food Management System**.
+This document provides the exact list names, internal column names, data types, and configurations for the **SaveFood Management System**.
 
 ---
 

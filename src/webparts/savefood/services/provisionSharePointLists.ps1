@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Automated SharePoint Lists Provisioning Script for Vedanta Save Food Management System.
+    Automated SharePoint Lists Provisioning Script for Vedanta SaveFood Management System.
 .DESCRIPTION
     Creates the 3 required SharePoint Lists on the target site (SaveFoodUAT or SaveFood):
     1. LocationMaster (Single line text Location, Boolean IsActive, seeded with 6 locations)

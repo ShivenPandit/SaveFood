@@ -1,14 +1,14 @@
 import * as React from "react";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPHttpClient } from "@microsoft/sp-http";
-import { IMealOptOutRequestItem } from "../../models/IMealOptOut";
+import { IMealOptOutRequestItem, MealType } from "../../models/IMealOptOut";
 import { ILocationMasterItem } from "../../models/ILocation";
 import { MealRequestService } from "../../services/mealRequestService";
 import { formatISTDateToISO } from "../../services/cutOffService";
 import { BackButton } from "../Common/BackButton";
-import TagPeoplePicker, { IUser } from "../Common/TagPeoplePicker";
 import { useDynamicPagination } from "../../hooks/useDynamicPagination";
 import { DataTablePagination } from "../Common/DataTablePagination";
+import { AdvancedFilterPopover } from "../Common/AdvancedFilterPopover";
 
 export interface IAllMealOptOutsProps {
   context: WebPartContext;
@@ -17,6 +17,15 @@ export interface IAllMealOptOutsProps {
   onBack: () => void;
   hideBackButton?: boolean;
   onFilteredDataChange?: (filteredItems: IMealOptOutRequestItem[], hasActiveFilters: boolean) => void;
+  // Shared Filter State (Optional, for syncing with ReportsDashboard)
+  sharedStartDate?: string | null;
+  sharedEndDate?: string | null;
+  onSharedStartDateChange?: (val: string | null) => void;
+  onSharedEndDateChange?: (val: string | null) => void;
+  sharedLocationIds?: number[];
+  onSharedLocationIdsChange?: (ids: number[]) => void;
+  sharedMealTypes?: MealType[];
+  onSharedMealTypesChange?: (types: MealType[]) => void;
 }
 
 export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
@@ -26,6 +35,14 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
   onBack,
   hideBackButton = false,
   onFilteredDataChange,
+  sharedStartDate,
+  sharedEndDate,
+  onSharedStartDateChange,
+  onSharedEndDateChange,
+  sharedLocationIds,
+  onSharedLocationIdsChange,
+  sharedMealTypes,
+  onSharedMealTypesChange,
 }) => {
   const cachedInitial = React.useMemo(() => {
     return MealRequestService.getCachedAllMealOptOuts() || [];
@@ -37,76 +54,48 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
 
   // Date Presets & Custom Range Filter (Defaults to Today in IST)
   const todayISOString = React.useMemo(() => formatISTDateToISO(new Date()), []);
-  const tomorrowISOString = React.useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return formatISTDateToISO(d);
-  }, []);
 
-  // Default to Today on initial load as requested
-  const [startDate, setStartDate] = React.useState<string | null>(todayISOString);
-  const [endDate, setEndDate] = React.useState<string | null>(todayISOString);
-  const [filterLocationId, setFilterLocationId] = React.useState<number | "all">("all");
-  const [selectedRequesters, setSelectedRequesters] = React.useState<IUser[]>([]);
+  // Controlled vs Uncontrolled Filter State
+  const isControlled = sharedStartDate !== undefined;
 
-  // Preset Active Flags
-  const isTodayActive = startDate === todayISOString && endDate === todayISOString;
-  const isTomorrowActive = startDate === tomorrowISOString && endDate === tomorrowISOString;
-  const isAllDatesActive = startDate === null && endDate === null;
-  const isCustomRange =
-    !isTodayActive &&
-    !isTomorrowActive &&
-    !isAllDatesActive &&
-    (Boolean(startDate) || Boolean(endDate));
+  const [internalStartDate, setInternalStartDate] = React.useState<string | null>(todayISOString);
+  const [internalEndDate, setInternalEndDate] = React.useState<string | null>(todayISOString);
+  const [internalLocationIds, setInternalLocationIds] = React.useState<number[]>([]);
+  const [internalMealTypes, setInternalMealTypes] = React.useState<MealType[]>([]);
 
-  // Date Range Change Handlers (guarantees To >= From)
-  const handleStartDateChange = (val: string | null): void => {
-    setStartDate(val);
-    if (val && endDate && val > endDate) {
-      setEndDate(val);
-    }
-  };
+  const startDate = isControlled ? sharedStartDate : internalStartDate;
+  const endDate = isControlled ? sharedEndDate : internalEndDate;
+  const setStartDate = isControlled && onSharedStartDateChange ? onSharedStartDateChange : setInternalStartDate;
+  const setEndDate = isControlled && onSharedEndDateChange ? onSharedEndDateChange : setInternalEndDate;
 
-  const handleEndDateChange = (val: string | null): void => {
-    if (val && startDate && val < startDate) {
-      setEndDate(startDate);
-    } else {
-      setEndDate(val);
-    }
-  };
+  const selectedLocationIds = isControlled && sharedLocationIds ? sharedLocationIds : internalLocationIds;
+  const setSelectedLocationIds = isControlled && onSharedLocationIdsChange ? onSharedLocationIdsChange : setInternalLocationIds;
 
-  // Filter Popover state & Click Outside Handler
+  const selectedMealTypes = isControlled && sharedMealTypes ? sharedMealTypes : internalMealTypes;
+  const setSelectedMealTypes = isControlled && onSharedMealTypesChange ? onSharedMealTypesChange : setInternalMealTypes;
+
+  // Filter Popover state
   const [isFilterOpen, setIsFilterOpen] = React.useState<boolean>(false);
   const filterRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent): void => {
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-        setIsFilterOpen(false);
-      }
-    };
-    if (isFilterOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isFilterOpen]);
-
   // Active filter count for badge
+  const isAllDatesActive = startDate === null && endDate === null;
+  const isLocationFilterActive = selectedLocationIds.length > 0;
+  const isMealTypeFilterActive = selectedMealTypes.length > 0 && selectedMealTypes.length < 3;
+
   const activeFilterCount = React.useMemo(() => {
     let count = 0;
     if (!isAllDatesActive) count++;
-    if (filterLocationId !== "all") count++;
-    if (selectedRequesters.length > 0) count++;
+    if (isLocationFilterActive) count++;
+    if (isMealTypeFilterActive) count++;
     return count;
-  }, [isAllDatesActive, filterLocationId, selectedRequesters]);
+  }, [isAllDatesActive, isLocationFilterActive, isMealTypeFilterActive]);
 
   const handleResetFilters = (): void => {
     setStartDate(null);
     setEndDate(null);
-    setFilterLocationId("all");
-    setSelectedRequesters([]);
+    setSelectedLocationIds([]);
+    setSelectedMealTypes([]);
   };
 
   // Pagination
@@ -166,7 +155,7 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
     setIsLoadingMore(false);
   };
 
-  // Instant in-memory filtering: Date Range, Location, and Multi-Person Requesters
+  // Instant in-memory filtering: Date Range, Location Multi-Select, Meal Type Multi-Select, and Requesters
   const filteredRequests = React.useMemo(() => {
     const effStart = startDate && endDate && startDate > endDate ? endDate : startDate;
     const effEnd = startDate && endDate && startDate > endDate ? startDate : endDate;
@@ -177,52 +166,20 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
       if (effStart && itemDateStr < effStart) return false;
       if (effEnd && itemDateStr > effEnd) return false;
 
-      // 2. Location filter
-      if (filterLocationId !== "all") {
-        const itemLocId = r.LocationId || r.Location?.Id;
-        if (itemLocId !== filterLocationId) return false;
+      // 2. Meal Type Multi-Select filter
+      if (selectedMealTypes.length > 0 && selectedMealTypes.length < 3) {
+        if (selectedMealTypes.indexOf(r.MealType) === -1) return false;
       }
 
-      // 3. Multi-Person Requester filter
-      if (selectedRequesters.length > 0) {
-        const reqEmail = (r.Requester?.EMail || "").toLowerCase().trim();
-        const reqName = (r.Requester?.Title || "").toLowerCase().trim();
-
-        const matches = selectedRequesters.some((u) => {
-          const userEmail = (u.email || "").toLowerCase().trim();
-          const userName = (u.title || "").toLowerCase().trim();
-
-          // Match by email
-          if (
-            userEmail &&
-            reqEmail &&
-            (reqEmail === userEmail ||
-              reqEmail.indexOf(userEmail) !== -1 ||
-              userEmail.indexOf(reqEmail) !== -1)
-          ) {
-            return true;
-          }
-          // Match by name
-          if (
-            userName &&
-            reqName &&
-            (reqName === userName ||
-              reqName.indexOf(userName) !== -1 ||
-              userName.indexOf(reqName) !== -1)
-          ) {
-            return true;
-          }
-          return false;
-        });
-
-        if (!matches) {
-          return false;
-        }
+      // 3. Location Multi-Select filter
+      if (selectedLocationIds.length > 0) {
+        const itemLocId = r.LocationId || r.Location?.Id;
+        if (!itemLocId || selectedLocationIds.indexOf(itemLocId) === -1) return false;
       }
 
       return true;
     });
-  }, [requests, startDate, endDate, filterLocationId, selectedRequesters]);
+  }, [requests, startDate, endDate, selectedLocationIds, selectedMealTypes]);
 
   // Dynamic Viewport-Aware Pagination
   const {
@@ -239,10 +196,10 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
     viewType: "all-requests",
   });
 
-  // Reset to first page when filters or search change
+  // Reset to first page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [startDate, endDate, filterLocationId, selectedRequesters, setCurrentPage]);
+  }, [startDate, endDate, selectedLocationIds, selectedMealTypes, setCurrentPage]);
 
   // Notify parent component of current filtered dataset and active filter status
   React.useEffect(() => {
@@ -304,217 +261,21 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
             </button>
 
             {/* Advanced Search Criteria Dropdown Popover */}
-            {isFilterOpen && (
-              <>
-                {/* Responsive Backdrop (< lg screens) */}
-                <div
-                  className="fixed inset-0 bg-slate-900/40 z-40 lg:hidden backdrop-blur-xs"
-                  onClick={() => setIsFilterOpen(false)}
-                />
-
-                <div
-                  className="fixed inset-x-4 top-20 max-w-lg mx-auto lg:mx-0 lg:max-w-none lg:inset-x-auto lg:absolute lg:top-full lg:right-0 mt-0 lg:mt-2 w-auto lg:w-[460px] max-h-[85vh] overflow-y-auto bg-white rounded-2xl border-2 border-slate-200/90 shadow-2xl p-4 sm:p-5 z-50 animate-in fade-in zoom-in-95 duration-150"
-                  style={{ filter: "drop-shadow(0 20px 25px -5px rgba(0, 0, 0, 0.2))" }}
-                >
-                  {/* Popover Header */}
-                  <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100">
-                    <div className="flex items-center gap-2 text-[#0f172a]">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#004B87] flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                        </svg>
-                      </div>
-                      <h3 className="text-[16px] font-bold tracking-tight">Advanced Filter Criteria</h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsFilterOpen(false)}
-                      className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
-                      title="Close filters"
-                      aria-label="Close filters"
-                    >
-                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Popover Form Fields */}
-                  <div className="space-y-3.5">
-                    {/* 1. Date Range Filter & Quick Presets */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-[12px] font-bold text-slate-600 uppercase tracking-wider">
-                          MEAL DATE RANGE
-                        </label>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStartDate(todayISOString);
-                              setEndDate(todayISOString);
-                            }}
-                            className={`px-2.5 py-0.5 rounded-md text-[12px] font-semibold border transition cursor-pointer ${
-                              isTodayActive
-                                ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
-                                : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            Today
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStartDate(tomorrowISOString);
-                              setEndDate(tomorrowISOString);
-                            }}
-                            className={`px-2.5 py-0.5 rounded-md text-[12px] font-semibold border transition cursor-pointer ${
-                              isTomorrowActive
-                                ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
-                                : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            Tomorrow
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStartDate(null);
-                              setEndDate(null);
-                            }}
-                            className={`px-2.5 py-0.5 rounded-md text-[12px] font-semibold border transition cursor-pointer ${
-                              isAllDatesActive
-                                ? "bg-[#004B87] text-white border-[#004B87] shadow-2xs"
-                                : "bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            All Dates
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* From Date */}
-                        <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[40px]">
-                          <span className="px-2.5 text-[12.5px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2 select-none shrink-0">
-                            From
-                          </span>
-                          <input
-                            type="date"
-                            value={startDate || ""}
-                            max={endDate || undefined}
-                            onChange={(e) => handleStartDateChange(e.target.value || null)}
-                            aria-label="From Date"
-                            className="w-full h-[40px] px-2.5 text-[13.5px] font-medium text-slate-800 bg-white focus:outline-none"
-                          />
-                        </div>
-
-                        <span className="text-slate-400 font-bold text-xs shrink-0 select-none">to</span>
-
-                        {/* To Date */}
-                        <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#004B87] focus-within:border-[#004B87] flex-1 min-h-[40px]">
-                          <span className="px-2.5 text-[12.5px] font-bold text-slate-500 bg-slate-100 border-r border-slate-200 py-2 select-none shrink-0">
-                            To
-                          </span>
-                          <input
-                            type="date"
-                            value={endDate || ""}
-                            min={startDate || undefined}
-                            onChange={(e) => handleEndDateChange(e.target.value || null)}
-                            aria-label="To Date"
-                            className="w-full h-[40px] px-2.5 text-[13.5px] font-medium text-slate-800 bg-white focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Clear Range Button */}
-                        {isCustomRange && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStartDate(null);
-                              setEndDate(null);
-                            }}
-                            title="Clear Date Filter"
-                            className="h-[40px] px-2.5 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center shrink-0 cursor-pointer"
-                          >
-                            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 2. Canteen / Mess Location Filter */}
-                    <div>
-                      <label className="block text-[12px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                        CANTEEN LOCATION
-                      </label>
-                      <select
-                        value={filterLocationId}
-                        onChange={(e) =>
-                          setFilterLocationId(e.target.value === "all" ? "all" : Number(e.target.value))
-                        }
-                        className="w-full h-10 px-3 rounded-xl border border-slate-300 text-[14px] font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#004B87]"
-                      >
-                        <option value="all">All Mess Locations</option>
-                        {locations.map((loc) => (
-                          <option key={loc.Id} value={loc.Id}>
-                            {loc.Title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* 3. Multi-Person Requester Filter */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-[12px] font-bold text-slate-600 uppercase tracking-wider">
-                          EMPLOYEE / REQUESTER
-                        </label>
-                        {selectedRequesters.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRequesters([])}
-                            className="text-[11.5px] font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer"
-                          >
-                            Clear ({selectedRequesters.length})
-                          </button>
-                        )}
-                      </div>
-                      <TagPeoplePicker
-                        context={context}
-                        spHttpClient={spHttpClient}
-                        siteUrl={siteUrl}
-                        selectedUsers={selectedRequesters}
-                        onUsersSelected={setSelectedRequesters}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Popover Footer */}
-                  <div className="flex items-center justify-between pt-3.5 mt-4 border-t border-slate-100 gap-2">
-                    <button
-                      type="button"
-                      onClick={handleResetFilters}
-                      disabled={activeFilterCount === 0}
-                      className="px-3.5 py-2 rounded-xl text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                    >
-                      Reset All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsFilterOpen(false)}
-                      className="px-5 py-2 rounded-xl bg-[#004B87] hover:bg-[#003865] text-white text-[13.5px] font-bold shadow-xs hover:shadow transition cursor-pointer"
-                    >
-                      Apply &amp; Close
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+            <AdvancedFilterPopover
+              isOpen={isFilterOpen}
+              onClose={() => setIsFilterOpen(false)}
+              startDate={startDate || null}
+              endDate={endDate || null}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+              selectedMealTypes={selectedMealTypes}
+              onMealTypesChange={setSelectedMealTypes}
+              locations={locations}
+              selectedLocationIds={selectedLocationIds}
+              onLocationsChange={setSelectedLocationIds}
+              onResetAll={handleResetFilters}
+              activeFilterCount={activeFilterCount}
+            />
           </div>
 
           {/* Count Pill */}
@@ -552,15 +313,10 @@ export const AllMealOptOuts: React.FC<IAllMealOptOutsProps> = ({
             <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto mt-1">
               No employee meal cancellations recorded for the selected criteria.
             </p>
-            {(startDate || endDate || filterLocationId !== "all" || selectedRequesters.length > 0) && (
+            {activeFilterCount > 0 && (
               <button
                 type="button"
-                onClick={() => {
-                  setStartDate(null);
-                  setEndDate(null);
-                  setFilterLocationId("all");
-                  setSelectedRequesters([]);
-                }}
+                onClick={handleResetFilters}
                 className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#004B87] hover:bg-[#003865] text-white text-xs font-bold transition shadow-2xs cursor-pointer"
               >
                 <span>Reset All Filters</span>

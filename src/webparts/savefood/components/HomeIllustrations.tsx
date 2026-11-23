@@ -1,7 +1,7 @@
 import * as React from "react";
 
 /**
- * Modern 3D-styled Vector Illustrations for VOGL Save Food Management System.
+ * Modern 3D-styled Vector Illustrations for VOGL SaveFood Management System.
  * Matched precisely to the enterprise dining dashboard aesthetic.
  */
 

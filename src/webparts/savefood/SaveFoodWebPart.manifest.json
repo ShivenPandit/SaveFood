@@ -20,14 +20,14 @@
         "default": "Advanced"
       },
       "title": {
-        "default": "Save Food Management System"
+        "default": "SaveFood Management System"
       },
       "description": {
-        "default": "VOGL Save Food Management System Web Part"
+        "default": "VOGL SaveFood Management System Web Part"
       },
       "officeFabricIconFontName": "Page",
       "properties": {
-        "description": "Save Food Management System"
+        "description": "SaveFood Management System"
       }
     }
   ]
