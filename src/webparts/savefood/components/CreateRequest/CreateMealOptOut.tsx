@@ -36,7 +36,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
   // Form State
   const [locations, setLocations] = React.useState<ILocationMasterItem[]>([]);
   const [selectedLocationId, setSelectedLocationId] = React.useState<number | "">("");
-  const [selectedMealType, setSelectedMealType] = React.useState<MealType | "">("");
+  const [selectedMealTypes, setSelectedMealTypes] = React.useState<MealType[]>([]);
 
   // Date selection: Do not pre-select today's date; initialize as empty ("")
   const todayIST = getCurrentISTDate();
@@ -102,28 +102,45 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
     return result;
   }, [selectedDate]);
 
-  // Clear selectedMealType whenever the user picks a date whose cut-off has already passed for that meal
+  // Auto-clean any selected meal types whenever user picks a date whose cut-off has passed for that meal
   React.useEffect(() => {
-    if (selectedDate && selectedMealType && mealValidation[selectedMealType]?.isExpired) {
-      setSelectedMealType("");
+    if (selectedDate && selectedMealTypes.length > 0) {
+      const valid = selectedMealTypes.filter((t) => !mealValidation[t]?.isExpired);
+      if (valid.length !== selectedMealTypes.length) {
+        setSelectedMealTypes(valid);
+      }
     }
-  }, [selectedDate, selectedMealType, mealValidation]);
+  }, [selectedDate, mealValidation]);
 
   // Selected Location Object
   const selectedLocationObj = React.useMemo(() => {
     return locations.find((l) => l.Id === Number(selectedLocationId));
   }, [locations, selectedLocationId]);
 
-  // Compute current cut-off display info for the selected meal type and date
-  const cutOffDisplay = React.useMemo(() => {
-    if (!selectedDate || !selectedMealType) return null;
-    const cutOff = getCutOffDateTimeIST(selectedDate, selectedMealType);
-    return {
-      deadline: cutOff.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }),
-      date: cutOff.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-      rule: CUT_OFF_RULES[selectedMealType].description,
-    };
-  }, [selectedDate, selectedMealType]);
+  // Toggle meal type multi-selection
+  const handleToggleMealType = (type: MealType): void => {
+    if (mealValidation[type]?.isExpired) return;
+    setServerError(null);
+    setSelectedMealTypes((prev) => {
+      const exists = prev.indexOf(type) !== -1;
+      return exists ? prev.filter((t) => t !== type) : [...prev, type];
+    });
+    setTouched((prev) => ({ ...prev, mealType: true }));
+  };
+
+  // Compute current cut-off display info for all selected meal types and date
+  const cutOffDisplays = React.useMemo(() => {
+    if (!selectedDate || selectedMealTypes.length === 0) return [];
+    return selectedMealTypes.map((type) => {
+      const cutOff = getCutOffDateTimeIST(selectedDate, type);
+      return {
+        type,
+        deadline: cutOff.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }),
+        date: cutOff.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        rule: CUT_OFF_RULES[type].description,
+      };
+    });
+  }, [selectedDate, selectedMealTypes]);
 
   // Computed Inline Validation Errors
   const locationError =
@@ -137,8 +154,8 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
       : null;
 
   const mealTypeError =
-    (hasAttemptedSubmit || touched.mealType) && !selectedMealType
-      ? "Please select a meal type (Breakfast, Lunch, or Dinner)."
+    (hasAttemptedSubmit || touched.mealType) && selectedMealTypes.length === 0
+      ? "Please select at least one meal type (Breakfast, Lunch, or Dinner)."
       : null;
 
   // Handle Form Submission
@@ -147,39 +164,41 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
     setHasAttemptedSubmit(true);
     setServerError(null);
 
-    const isSelectedMealExpired = selectedMealType ? mealValidation[selectedMealType]?.isExpired : false;
+    const nonExpiredMeals = selectedMealTypes.filter((t) => !mealValidation[t]?.isExpired);
 
-    if (!selectedLocationId || !selectedDate || !selectedMealType || isSelectedMealExpired) {
+    if (!selectedLocationId || !selectedDate || nonExpiredMeals.length === 0) {
       return;
     }
 
     setIsSubmitting(true);
 
     const locationName = selectedLocationObj ? selectedLocationObj.Title : "Mess";
-    const titleSummary = `${locationName} - ${selectedMealType} - ${selectedDate}`;
-
-    const result = await MealRequestService.createMealOptOut(spHttpClient, siteUrl, {
-      Title: titleSummary,
+    const payloads = nonExpiredMeals.map((type) => ({
+      Title: `${locationName} - ${type} - ${selectedDate}`,
       LocationId: Number(selectedLocationId),
       LocationTitle: locationName,
-      MealType: selectedMealType,
+      MealType: type,
       MealDate: `${selectedDate}T00:00:00Z`,
       RequesterId: currentUserId,
       RequesterEmail: currentUserEmail,
-    });
+    }));
+
+    const result = await MealRequestService.createMultipleMealOptOuts(
+      spHttpClient,
+      siteUrl,
+      payloads
+    );
 
     setIsSubmitting(false);
 
     if (result.success) {
-      // Immediately transition to My Requests and display modern floating toast on destination screen
-      const successMsg = `Opt-out submitted successfully for ${selectedMealType} on ${selectedDate}.`;
-      onSuccess(successMsg);
+      onSuccess(result.message);
     } else {
-      setServerError(result.error || "Failed to submit request. Please try again.");
+      setServerError(result.message || "Failed to submit request. Please try again.");
     }
   };
 
-  const isCurrentSelectionExpired = !!selectedMealType && mealValidation[selectedMealType]?.isExpired;
+  const hasExpiredMealSelected = selectedMealTypes.some((t) => mealValidation[t]?.isExpired);
 
   return (
     <div className="w-full select-none" style={{ height: "auto", flex: "0 0 auto" }}>
@@ -228,6 +247,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                   onChange={(e) => {
                     const val = e.target.value ? Number(e.target.value) : "";
                     setSelectedLocationId(val);
+                    setServerError(null);
                     setTouched((prev) => ({ ...prev, location: true }));
                   }}
                   onBlur={() => setTouched((prev) => ({ ...prev, location: true }))}
@@ -262,18 +282,18 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
               )}
             </div>
 
-            {/* 2. Meal Type Selection (Top-Right) */}
+            {/* 2. Meal Type Multi-Selection (Top-Right) */}
             <div>
               <label className="block text-[14.5px] font-semibold text-[#1e293b] mb-2">
                 Meal Type <span className="text-rose-500">*</span>
               </label>
               <div
                 className={`grid grid-cols-3 gap-3 p-1 rounded-2xl transition-all ${
-                  mealTypeError && !selectedMealType ? "border-2 border-rose-400 bg-rose-50/30" : ""
+                  mealTypeError && selectedMealTypes.length === 0 ? "border-2 border-rose-400 bg-rose-50/30" : ""
                 }`}
               >
                 {mealTypeOptions.map((type) => {
-                  const isSelected = selectedMealType === type;
+                  const isSelected = selectedMealTypes.indexOf(type) !== -1;
                   const status = mealValidation[type];
                   const isExpired = status?.isExpired;
 
@@ -284,12 +304,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                     >
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!isExpired) {
-                            setSelectedMealType(type);
-                            setTouched((prev) => ({ ...prev, mealType: true }));
-                          }
-                        }}
+                        onClick={() => handleToggleMealType(type)}
                         disabled={isSubmitting || isExpired}
                         style={
                           isExpired
@@ -306,10 +321,11 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                           isExpired
                             ? "cursor-not-allowed pointer-events-none"
                             : isSelected
-                            ? "border-[#004B87] bg-blue-50/70 text-[#004B87] shadow-xs cursor-pointer"
+                            ? "border-[#004B87] bg-blue-50/70 text-[#004B87] shadow-xs cursor-pointer ring-1 ring-[#004B87]/20"
                             : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
                         }`}
                       >
+                        {isSelected && <span className="font-bold text-[14px] leading-none text-[#004B87]">✓</span>}
                         <span className="text-lg">{type === "Breakfast" ? "🍳" : type === "Lunch" ? "🥗" : "🍲"}</span>
                         <span>{type}</span>
                       </button>
@@ -345,13 +361,18 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                   </svg>
                   <span>{mealTypeError}</span>
                 </p>
-              ) : cutOffDisplay ? (
-                <p className="text-[13px] text-slate-500 mt-1.5">
-                  Deadline: <span className="font-bold text-slate-700">{cutOffDisplay.date} at {cutOffDisplay.deadline} IST</span>
-                </p>
+              ) : cutOffDisplays.length > 0 ? (
+                <div className="text-[13px] text-slate-500 mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {cutOffDisplays.map((d) => (
+                    <span key={d.type} className="inline-flex items-center gap-1">
+                      <span className="font-semibold text-slate-600">{d.type} Deadline:</span>
+                      <span className="font-bold text-slate-800">{d.date} at {d.deadline} IST</span>
+                    </span>
+                  ))}
+                </div>
               ) : (
                 <p className="text-[13px] text-[#64748b] mt-1.5">
-                  Select Breakfast, Lunch, or Dinner.
+                  Select one or more meal types (Breakfast, Lunch, or Dinner).
                 </p>
               )}
             </div>
@@ -368,6 +389,7 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                 placeholder="dd-mm-yyyy"
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
+                  setServerError(null);
                   setTouched((prev) => ({ ...prev, date: true }));
                 }}
                 onBlur={() => setTouched((prev) => ({ ...prev, date: true }))}
@@ -421,9 +443,9 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || isCurrentSelectionExpired}
+              disabled={isSubmitting || selectedMealTypes.length === 0 || hasExpiredMealSelected}
               className={`h-[46px] px-7 py-2.5 rounded-full text-white text-[15px] font-semibold shadow-sm transition-all inline-flex items-center justify-center gap-2.5 cursor-pointer whitespace-nowrap ${
-                isSubmitting || isCurrentSelectionExpired
+                isSubmitting || selectedMealTypes.length === 0 || hasExpiredMealSelected
                   ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                   : "bg-[#0066CC] hover:bg-[#0052A3] hover:shadow-md"
               }`}
@@ -438,7 +460,11 @@ export const CreateMealOptOut: React.FC<ICreateMealOptOutProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Submit Meal Opt-Out</span>
+                  <span>
+                    {selectedMealTypes.length > 1
+                      ? `Submit ${selectedMealTypes.length} Meal Opt-Outs`
+                      : "Submit Meal Opt-Out"}
+                  </span>
                   <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12" />
                     <polyline points="12 5 19 12 12 19" />

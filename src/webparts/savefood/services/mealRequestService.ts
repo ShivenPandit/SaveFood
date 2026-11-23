@@ -14,6 +14,50 @@ export interface IPagedResult<T> {
   totalCount?: number;
 }
 
+export interface IBatchCreateResult {
+  success: boolean;
+  successfulMeals: MealType[];
+  failedMeals: { mealType: MealType; error: string; isDuplicate?: boolean }[];
+  message: string;
+}
+
+/**
+ * Format ISO date string (e.g. "2026-11-26" or "2026-11-26T00:00:00Z") to "26 Nov 2026"
+ */
+export const formatIsoToDisplayDate = (isoStr: string): string => {
+  if (!isoStr) return "";
+  try {
+    const raw = isoStr.split("T")[0];
+    const parts = raw.split("-");
+    if (parts.length === 3) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parts[2];
+      const monthNames = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+      ];
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${day} ${monthNames[monthIdx]} ${year}`;
+      }
+      return `${day}-${parts[1]}-${year}`;
+    }
+    return raw;
+  } catch {
+    return isoStr.split("T")[0];
+  }
+};
+
+/**
+ * Join meal types with natural English conjunction (e.g. "Breakfast, Lunch & Dinner")
+ */
+export const joinMealTypes = (meals: MealType[]): string => {
+  if (meals.length === 0) return "";
+  if (meals.length === 1) return meals[0];
+  if (meals.length === 2) return `${meals[0]} & ${meals[1]}`;
+  return `${meals.slice(0, -1).join(", ")} & ${meals[meals.length - 1]}`;
+};
+
 /**
  * Service handling all SharePoint List operations for the SaveFood system.
  */
@@ -334,7 +378,7 @@ export class MealRequestService {
     spHttpClient: SPHttpClient,
     siteUrl: string,
     payload: ICreateMealOptOutPayload
-  ): Promise<{ success: boolean; item?: IMealOptOutRequestItem; error?: string }> {
+  ): Promise<{ success: boolean; item?: IMealOptOutRequestItem; error?: string; isDuplicate?: boolean }> {
     // PRE-WRITE GUARD (Barrier 2): Server/data-write revalidation immediately before saving
     const cutOffCheck = validateMealCutOff(payload.MealDate, payload.MealType);
 
@@ -358,7 +402,8 @@ export class MealRequestService {
       if (isDuplicate) {
         return {
           success: false,
-          error: `You have already opted out of ${payload.MealType} on ${payload.MealDate.split("T")[0]}.`,
+          error: `You have already opted out of ${payload.MealType} on ${formatIsoToDisplayDate(payload.MealDate)}.`,
+          isDuplicate: true,
         };
       }
     }
@@ -458,6 +503,74 @@ export class MealRequestService {
         error: err instanceof Error ? err.message : String(err),
       };
     }
+  }
+
+  /**
+   * 6b. Create Multiple Meal Opt-Out Requests (one database entry per selected meal type)
+   */
+  public static async createMultipleMealOptOuts(
+    spHttpClient: SPHttpClient,
+    siteUrl: string,
+    payloads: ICreateMealOptOutPayload[]
+  ): Promise<IBatchCreateResult> {
+    const successfulMeals: MealType[] = [];
+    const failedMeals: { mealType: MealType; error: string; isDuplicate?: boolean }[] = [];
+
+    for (const payload of payloads) {
+      const res = await this.createMealOptOut(spHttpClient, siteUrl, payload);
+      if (res.success) {
+        successfulMeals.push(payload.MealType);
+      } else {
+        failedMeals.push({
+          mealType: payload.MealType,
+          error: res.error || `Failed to save ${payload.MealType} opt-out`,
+          isDuplicate: res.isDuplicate,
+        });
+      }
+    }
+
+    this.clearCache();
+
+    const allSucceeded = failedMeals.length === 0;
+    const anySucceeded = successfulMeals.length > 0;
+    const formattedDate = formatIsoToDisplayDate(payloads[0]?.MealDate || "");
+
+    let message = "";
+    if (allSucceeded) {
+      message = `Opt-out submitted successfully for ${joinMealTypes(successfulMeals)} on ${formattedDate}.`;
+    } else {
+      const allDuplicates = failedMeals.every((f) => f.isDuplicate);
+      const duplicateMeals = failedMeals.filter((f) => f.isDuplicate).map((f) => f.mealType);
+      const otherErrors = failedMeals.filter((f) => !f.isDuplicate).map((f) => `${f.mealType}: ${f.error}`);
+
+      if (allDuplicates) {
+        const dupText = `You have already opted out of ${joinMealTypes(duplicateMeals)} on ${formattedDate}.`;
+        if (anySucceeded) {
+          message = `Opt-out submitted successfully for ${joinMealTypes(successfulMeals)} on ${formattedDate}. (Already opted out of ${joinMealTypes(duplicateMeals)}.)`;
+        } else {
+          message = dupText;
+        }
+      } else {
+        const parts: string[] = [];
+        if (anySucceeded) {
+          parts.push(`Opt-out submitted for ${joinMealTypes(successfulMeals)} on ${formattedDate}.`);
+        }
+        if (duplicateMeals.length > 0) {
+          parts.push(`Already opted out of ${joinMealTypes(duplicateMeals)} on ${formattedDate}.`);
+        }
+        if (otherErrors.length > 0) {
+          parts.push(otherErrors.join("; "));
+        }
+        message = parts.join(" ");
+      }
+    }
+
+    return {
+      success: anySucceeded,
+      successfulMeals,
+      failedMeals,
+      message,
+    };
   }
 
   /**
